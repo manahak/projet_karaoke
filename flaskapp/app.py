@@ -16,10 +16,17 @@ users = db["users"]
 # --------------------------------------------------------
 @app.route('/')
 def index():
+    # Page d'accueil publique
+    return render_template("index.html")
+
+
+@app.route('/dashboard')
+def dashboard():
+    # Page réservée aux utilisateurs connectés
     if "user" in session:
         user = session["user"]
         return render_template("dashboard.html", user=user)
-    return render_template("login.html")
+    return redirect(url_for('login'))
 
 # --------------------------------------------------------
 #   PAGE D'INSCRIPTION
@@ -70,7 +77,8 @@ def login():
                 "username": user["username"],
                 "role": user["role"]
             }
-            return redirect(url_for("index"))
+            # Après connexion, rediriger vers le tableau de bord
+            return redirect(url_for("dashboard"))
         else:
             return "Identifiants invalides"
 

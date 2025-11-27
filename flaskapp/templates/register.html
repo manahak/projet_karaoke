@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Inscription</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; }
+        form { max-width: 300px; }
+        .error { color: red; font-weight: bold; }
+        input { margin-bottom: 10px; width: 100%; padding: 8px; }
+        button { padding: 8px 12px; }
+    </style>
+</head>
+<body>
+    <h2>Créer un compte</h2>
+
+    {% if message %}
+        <p class="error">{{ message }}</p>
+    {% endif %}
+
+    <form method="POST" action="/register">
+        <label>Nom d'utilisateur :</label><br>
+        <input type="text" name="username" required><br>
+
+        <label>Email :</label><br>
+        <input type="email" name="email" required><br>
+
+        <label>Mot de passe :</label><br>
+        <input type="password" name="password" required><br>
+
+        <button type="submit">S'inscrire</button>
+    </form>
+
+    <p>Déjà inscrit ? <a href="/login">Se connecter</a></p>
+</body>
+</html>

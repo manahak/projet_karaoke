@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from pymongo import MongoClient
 from bson import ObjectId
+from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -16,8 +17,47 @@ users = db["users"]
 # --------------------------------------------------------
 @app.route('/')
 def index():
-    # Page d'accueil publique
-    return render_template("index.html")
+    # Page d'accueil publique — afficher les boxes disponibles
+    boxes_cursor = db.box.find()
+    boxes = []
+    for b in boxes_cursor:
+        boxes.append({
+            "_id": str(b.get("_id")),
+            "numero": b.get("numero"),
+            "places": b.get("places"),
+            "status": b.get("status"),
+            "type": b.get("type"),
+            "prix_horaire": b.get("prix_horaire")
+        })
+    return render_template("index.html", boxes=boxes, current_year=datetime.now().year)
+
+
+@app.route('/reserve_box', methods=["POST"])
+def reserve_box():
+    # Nécessite connexion
+    if "user" not in session:
+        return redirect(url_for('login'))
+
+    box_id = request.form.get('box_id')
+    if not box_id:
+        return redirect(url_for('index'))
+
+    try:
+        oid = ObjectId(box_id)
+    except Exception:
+        return redirect(url_for('index'))
+
+    box = db.box.find_one({"_id": oid})
+    if not box:
+        return redirect(url_for('index'))
+
+    if box.get('status') != 'libre':
+        # Déjà réservé
+        return redirect(url_for('index'))
+
+    username = session['user']['username']
+    db.box.update_one({"_id": oid}, {"$set": {"status": 'reservee', "reserved_by": username, "reserved_at": datetime.utcnow()}})
+    return redirect(url_for('index'))
 
 
 @app.route('/dashboard')

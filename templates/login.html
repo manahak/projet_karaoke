@@ -1,17 +1,23 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Connexion</title>
-</head>
-<body>
-    <h2>Connexion</h2>
-    <form method="POST" action="/login">
-        <label>Nom d'utilisateur :</label><br>
-        <input type="text" name="username" required><br>
-        <label>Mot de passe :</label><br>
-        <input type="password" name="password" required><br>
-        <button type="submit">Se connecter</button>
-    </form>
-    <p>Pas encore de compte ? <a href="/register">S'inscrire</a></p>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Connexion - Mon Resto{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h2 class="mb-4">Connexion</h2>
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="mb-3">
+                    <label class="form-label">Nom d'utilisateur</label>
+                    <input class="form-control" type="text" name="username" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Mot de passe</label>
+                    <input class="form-control" type="password" name="password" required>
+                </div>
+                <button class="btn btn-primary" type="submit">Se connecter</button>
+            </form>
+            <p class="mt-3">Pas encore de compte ? <a href="{{ url_for('register') }}">S'inscrire</a></p>
+        </div>
+    </div>
+{% endblock %}

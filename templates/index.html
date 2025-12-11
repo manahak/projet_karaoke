@@ -1,34 +1,23 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Accueil - Mon Resto</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; text-align: center; }
-        header { margin-bottom: 30px; }
-        .btn { display: inline-block; padding: 10px 18px; background: #007bff; color: #fff; text-decoration: none; border-radius: 6px; }
-        .btn.secondary { background: #6c757d; }
-        nav { margin-top: 10px; }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>Bienvenue sur Mon Resto</h1>
-        <p>Découvrez notre menu et réservez une table en quelques clics.</p>
-        <nav>
-            <a class="btn" href="{{ url_for('login') }}">Mon compte</a>
-            {%- if session.get('user') -%}
-                <a class="btn secondary" href="{{ url_for('dashboard') }}">Tableau de bord</a>
-            {%- endif -%}
-        </nav>
-    </header>
+{% extends "base.html" %}
 
-    <main>
-        <section>
+{% block title %}Accueil - Mon Resto{% endblock %}
+
+{% block content %}
+    <div class="py-5 text-center">
+        <h1 class="display-5">Bienvenue sur Mon Resto</h1>
+        <p class="lead">Découvrez notre menu et réservez une table en quelques clics.</p>
+        <p>
+            <a class="btn btn-primary" href="{{ url_for('login') }}">Mon compte</a>
+            {% if session.get('user') %}
+                <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Tableau de bord</a>
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
             <h2>Nos spécialités</h2>
             <p>Pizza, pâtes, salades fraîches et desserts maison.</p>
-        </section>
-    </main>
-
-</body>
-</html>
+        </div>
+    </div>
+{% endblock %}

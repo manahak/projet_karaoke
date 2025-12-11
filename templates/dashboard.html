@@ -1,12 +1,14 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Tableau de bord</title>
-</head>
-<body>
-    <h2>Vous êtes connecté</h2>
-    <p>Utilisateur : {{ user.username }}</p>
-    <p>Rôle : {{ user.role }}</p>
-    <a href="/logout">Se déconnecter</a>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Mon Resto{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-8">
+            <h2>Tableau de bord</h2>
+            <p>Utilisateur : <strong>{{ user.username }}</strong></p>
+            <p>Rôle : <strong>{{ user.role }}</strong></p>
+            <a class="btn btn-secondary" href="{{ url_for('logout') }}">Se déconnecter</a>
+        </div>
+    </div>
+{% endblock %}

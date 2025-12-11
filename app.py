@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
@@ -139,6 +139,8 @@ def reservation_create():
     session.pop('pending_reservation', None)
     session.pop('post_login_redirect', None)
 
+    # Flash a thank-you banner message
+    flash('Merci de votre réservation !', 'success')
     return redirect(url_for('dashboard'))
 
 
@@ -147,7 +149,27 @@ def dashboard():
     # Page réservée aux utilisateurs connectés
     if "user" in session:
         user = session["user"]
-        return render_template("dashboard.html", user=user)
+        # Récupérer les réservations de l'utilisateur
+        reservations = []
+        try:
+            user_oid = ObjectId(user.get('user_id'))
+            cursor = db.reservation.find({'user_id': user_oid}).sort('created_at', -1)
+            for r in cursor:
+                # obtenir numéro de box si disponible
+                box = db.box.find_one({'_id': r.get('box_id')}) if r.get('box_id') else None
+                reservations.append({
+                    '_id': str(r.get('_id')),
+                    'box_numero': box.get('numero') if box else None,
+                    'date': r.get('date'),
+                    'heure_debut': r.get('heure_debut'),
+                    'heure_fin': r.get('heure_fin'),
+                    'status': r.get('status'),
+                    'notes': r.get('notes', '')
+                })
+        except Exception:
+            reservations = []
+
+        return render_template("dashboard.html", user=user, reservations=reservations)
     return redirect(url_for('login'))
 
 # --------------------------------------------------------

@@ -3,15 +3,45 @@
 {% block title %}Tableau de bord - Karaoke Box & Resto{% endblock %}
 
 {% block content %}
-    <div class="row">
-        <div class="col-md-8">
-            <h2>Tableau de bord</h2>
-            <p>Utilisateur : <strong>{{ user.username }}</strong></p>
-            <p>Rôle : <strong>{{ user.role }}</strong></p>
-            <hr>
-            <h4>Votre espace</h4>
-            <p>Gérez vos réservations de box karaoké et vos commandes de restauration depuis ici.</p>
-            <a class="btn btn-secondary" href="{{ url_for('logout') }}">Se déconnecter</a>
+        <div class="row">
+            <div class="col-md-8">
+                <h2>Tableau de bord</h2>
+                <p>Utilisateur : <strong>{{ user.username }}</strong></p>
+                <p>Rôle : <strong>{{ user.role }}</strong></p>
+                <hr>
+                <h4>Votre espace</h4>
+                <p>Gérez vos réservations de box karaoké et vos commandes de restauration depuis ici.</p>
+                <a class="btn btn-secondary" href="{{ url_for('logout') }}">Se déconnecter</a>
+
+                <section class="mt-4">
+                    <h5>Vos réservations</h5>
+                    {% if reservations and reservations|length > 0 %}
+                        <table class="table mt-2">
+                            <thead>
+                                <tr>
+                                    <th>Box</th>
+                                    <th>Date</th>
+                                    <th>Heure</th>
+                                    <th>Statut</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in reservations %}
+                                    <tr>
+                                        <td>Box #{{ r.box_numero or '?' }}</td>
+                                        <td>{{ r.date }}</td>
+                                        <td>{{ r.heure_debut }} - {{ r.heure_fin }}</td>
+                                        <td>{{ r.status }}</td>
+                                        <td>{{ r.notes }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-muted">Aucune réservation pour le moment.</p>
+                    {% endif %}
+                </section>
+            </div>
         </div>
-    </div>
 {% endblock %}

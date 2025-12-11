@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Tableau de bord - Mon Resto{% endblock %}
+{% block title %}Tableau de bord - Karaoke Box & Resto{% endblock %}
 
 {% block content %}
     <div class="row">
@@ -8,6 +8,9 @@
             <h2>Tableau de bord</h2>
             <p>Utilisateur : <strong>{{ user.username }}</strong></p>
             <p>Rôle : <strong>{{ user.role }}</strong></p>
+            <hr>
+            <h4>Votre espace</h4>
+            <p>Gérez vos réservations de box karaoké et vos commandes de restauration depuis ici.</p>
             <a class="btn btn-secondary" href="{{ url_for('logout') }}">Se déconnecter</a>
         </div>
     </div>

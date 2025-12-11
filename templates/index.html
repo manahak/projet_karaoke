@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Accueil - Mon Resto{% endblock %}
+{% block title %}Accueil - Karaoke Box & Resto{% endblock %}
 
 {% block content %}
     <div class="py-5 text-center">
-        <h1 class="display-5">Bienvenue sur Mon Resto</h1>
-        <p class="lead">Découvrez notre menu et réservez une table en quelques clics.</p>
+        <h1 class="display-5">Bienvenue chez Karaoke Box & Resto</h1>
+        <p class="lead">Réservez une box karaoké ou commandez depuis notre menu — deux expériences, un seul lieu.</p>
         <p>
             <a class="btn btn-primary" href="{{ url_for('login') }}">Mon compte</a>
             {% if session.get('user') %}

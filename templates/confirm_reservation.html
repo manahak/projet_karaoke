@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Récapitulatif réservation - Karaoke Box & Resto{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center mt-4">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-body">
+          <h4 class="card-title">Récapitulatif de votre réservation</h4>
+          <p class="mb-1"><strong>Box :</strong> #{{ box.numero }} — {{ box.type|capitalize }}</p>
+          <p class="mb-1"><strong>Date :</strong> {{ pending.date }}</p>
+          <p class="mb-1"><strong>Heure :</strong> {{ pending.heure_debut }} — {{ pending.heure_fin }}</p>
+          <p class="mb-1"><strong>Prix / heure :</strong> {{ box.prix_horaire }} €</p>
+          {% if pending.notes %}
+            <p class="mb-1"><strong>Notes :</strong> {{ pending.notes }}</p>
+          {% endif %}
+          <hr>
+          {% if session.get('user') %}
+            <p>Vous êtes connecté en tant que <strong>{{ session.get('user')['username'] }}</strong>. Confirmez pour finaliser la réservation.</p>
+            <form method="POST" action="{{ url_for('reservation_create') }}">
+              <button class="btn btn-success" type="submit">Confirmer la réservation</button>
+              <a class="btn btn-secondary ms-2" href="{{ url_for('index') }}">Annuler</a>
+            </form>
+          {% else %}
+            <p>Vous devez être connecté pour confirmer la réservation.</p>
+            <a class="btn btn-primary" href="{{ url_for('login') }}">Se connecter / Créer un compte</a>
+            <a class="btn btn-secondary ms-2" href="{{ url_for('index') }}">Annuler</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

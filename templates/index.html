@@ -41,16 +41,36 @@
                                     {% endif %}
                                 </p>
                             </div>
-                            <div class="card-footer bg-transparent">
-                                {% if box.status == 'libre' %}
-                                    <form method="POST" action="{{ url_for('reserve_box') }}">
-                                        <input type="hidden" name="box_id" value="{{ box._id }}">
-                                        <button class="btn btn-primary" type="submit">Réserver</button>
-                                    </form>
-                                {% else %}
-                                    <button class="btn btn-outline-secondary" disabled>Indisponible</button>
-                                {% endif %}
-                            </div>
+                                                        <div class="card-footer bg-transparent">
+                                                                {% if box.status == 'libre' %}
+                                                                        <form method="POST" action="{{ url_for('reserve_prepare') }}">
+                                                                                <input type="hidden" name="box_id" value="{{ box._id }}">
+                                                                                <div class="row g-2">
+                                                                                    <div class="col-12 mb-2">
+                                                                                        <label class="form-label small">Date</label>
+                                                                                        <input class="form-control form-control-sm" type="date" name="date" required>
+                                                                                    </div>
+                                                                                    <div class="col-6">
+                                                                                        <label class="form-label small">Heure début</label>
+                                                                                        <input class="form-control form-control-sm" type="time" name="heure_debut" required>
+                                                                                    </div>
+                                                                                    <div class="col-6">
+                                                                                        <label class="form-label small">Heure fin</label>
+                                                                                        <input class="form-control form-control-sm" type="time" name="heure_fin" required>
+                                                                                    </div>
+                                                                                    <div class="col-12 mt-2">
+                                                                                        <label class="form-label small">Notes (optionnel)</label>
+                                                                                        <input class="form-control form-control-sm" type="text" name="notes" placeholder="Remarques, préférences...">
+                                                                                    </div>
+                                                                                    <div class="col-12 text-end mt-2">
+                                                                                        <button class="btn btn-primary btn-sm" type="submit">Choisir &amp; Confirmer</button>
+                                                                                    </div>
+                                                                                </div>
+                                                                        </form>
+                                                                {% else %}
+                                                                        <button class="btn btn-outline-secondary" disabled>Indisponible</button>
+                                                                {% endif %}
+                                                        </div>
                         </div>
                     </div>
                 {% endfor %}

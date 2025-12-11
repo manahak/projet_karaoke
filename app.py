@@ -7,6 +7,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = "cle_secrete_change_moi"  # Nécessaire pour les sessions
 
+
+@app.context_processor
+def inject_current_year():
+    return { 'current_year': datetime.now().year }
+
 # Connexion MongoDB
 client = MongoClient("mongodb://localhost:27017/")
 db = client["restoDB"]
@@ -32,32 +37,109 @@ def index():
     return render_template("index.html", boxes=boxes, current_year=datetime.now().year)
 
 
-@app.route('/reserve_box', methods=["POST"])
-def reserve_box():
-    # Nécessite connexion
-    if "user" not in session:
-        return redirect(url_for('login'))
-
+@app.route('/reserve_prepare', methods=["POST"])
+def reserve_prepare():
+    # Collect reservation details from the user and store in session.
     box_id = request.form.get('box_id')
-    if not box_id:
+    date = request.form.get('date')
+    heure_debut = request.form.get('heure_debut')
+    heure_fin = request.form.get('heure_fin')
+    notes = request.form.get('notes')
+
+    if not box_id or not date or not heure_debut or not heure_fin:
         return redirect(url_for('index'))
 
+    # Basic validation of ObjectId
     try:
-        oid = ObjectId(box_id)
+        ObjectId(box_id)
     except Exception:
         return redirect(url_for('index'))
 
-    box = db.box.find_one({"_id": oid})
+    session['pending_reservation'] = {
+        'box_id': box_id,
+        'date': date,
+        'heure_debut': heure_debut,
+        'heure_fin': heure_fin,
+        'notes': notes or ''
+    }
+
+    # If user not logged in, ask them to login first and then continue to confirmation
+    if 'user' not in session:
+        session['post_login_redirect'] = url_for('confirm_reservation')
+        return redirect(url_for('login'))
+
+    return redirect(url_for('confirm_reservation'))
+
+
+@app.route('/confirm_reservation', methods=['GET'])
+def confirm_reservation():
+    pending = session.get('pending_reservation')
+    if not pending:
+        return redirect(url_for('index'))
+
+    # Fetch box details for display
+    try:
+        box = db.box.find_one({'_id': ObjectId(pending['box_id'])})
+    except Exception:
+        return redirect(url_for('index'))
+
     if not box:
         return redirect(url_for('index'))
 
-    if box.get('status') != 'libre':
-        # Déjà réservé
+    return render_template('confirm_reservation.html', pending=pending, box={
+        '_id': str(box.get('_id')),
+        'numero': box.get('numero'),
+        'places': box.get('places'),
+        'type': box.get('type'),
+        'prix_horaire': box.get('prix_horaire')
+    })
+
+
+@app.route('/reservation_create', methods=['POST'])
+def reservation_create():
+    # Finalize reservation: user must be authenticated
+    if 'user' not in session:
+        session['post_login_redirect'] = url_for('confirm_reservation')
+        return redirect(url_for('login'))
+
+    pending = session.get('pending_reservation')
+    if not pending:
         return redirect(url_for('index'))
 
-    username = session['user']['username']
-    db.box.update_one({"_id": oid}, {"$set": {"status": 'reservee', "reserved_by": username, "reserved_at": datetime.utcnow()}})
-    return redirect(url_for('index'))
+    try:
+        user_oid = ObjectId(session['user']['user_id'])
+        box_oid = ObjectId(pending['box_id'])
+    except Exception:
+        return redirect(url_for('index'))
+
+    # Check box availability again
+    box = db.box.find_one({'_id': box_oid})
+    if not box or box.get('status') != 'libre':
+        # Box not available
+        session.pop('pending_reservation', None)
+        return redirect(url_for('index'))
+
+    reservation_doc = {
+        'user_id': user_oid,
+        'box_id': box_oid,
+        'date': pending['date'],
+        'heure_debut': pending['heure_debut'],
+        'heure_fin': pending['heure_fin'],
+        'status': 'en_attente',
+        'notes': pending.get('notes', ''),
+        'created_at': datetime.utcnow()
+    }
+
+    db.reservation.insert_one(reservation_doc)
+
+    # Mark box as reserved to prevent double booking
+    db.box.update_one({'_id': box_oid}, {'$set': {'status': 'reservee', 'reserved_by': session['user']['username'], 'reserved_at': datetime.utcnow()}})
+
+    # Cleanup
+    session.pop('pending_reservation', None)
+    session.pop('post_login_redirect', None)
+
+    return redirect(url_for('dashboard'))
 
 
 @app.route('/dashboard')
@@ -113,11 +195,17 @@ def login():
 
         user = users.find_one({"username": username})
         if user and check_password_hash(user["password"], password):
+            # Store user info and id in session for later use
             session["user"] = {
                 "username": user["username"],
-                "role": user["role"]
+                "role": user["role"],
+                "user_id": str(user.get("_id"))
             }
-            # Après connexion, rediriger vers le tableau de bord
+            # If there is a post-login redirect (reservation flow), follow it
+            redirect_target = session.pop('post_login_redirect', None)
+            if redirect_target:
+                return redirect(redirect_target)
+            # Sinon, rediriger vers le tableau de bord
             return redirect(url_for("dashboard"))
         else:
             return "Identifiants invalides"

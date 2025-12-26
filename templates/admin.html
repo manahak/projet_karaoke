@@ -122,6 +122,8 @@
 
   const csrfToken = '{{ csrf_token() }}';
   document.addEventListener('DOMContentLoaded', () => {
+    // Static images available in /static/img passed from server
+    const STATIC_BOX_IMAGES = {{ static_box_images | tojson | safe }} || [];
   // Header label mapping for readability
   const headerLabels = {
   '_id':'ID', 'numero':'Numéro', 'places':'Places', 'nom':'Nom', 'prix_horaire':'Prix', 'status':'Statut',
@@ -314,23 +316,33 @@
           wrapper.appendChild(label); wrapper.appendChild(input);
           appended = true;
         } else if (k === 'image'){
-          // image: allow file upload (converted to base64) AND a fallback URL input
-          const fileInput = document.createElement('input'); fileInput.type='file'; fileInput.accept='image/*'; fileInput.className='form-control form-control-sm mb-1';
-          const urlInput = document.createElement('input'); urlInput.type='text'; urlInput.placeholder='URL de l\'image (ou laisser vide si upload)'; urlInput.className='form-control'; urlInput.value = doc && doc[k] ? doc[k] : '';
+          // image: offer a select of available static images + URL input + optional upload
+          const select = document.createElement('select'); select.className = 'form-select form-select-sm mb-1';
+          const emptyOpt = document.createElement('option'); emptyOpt.value = ''; emptyOpt.textContent = '(Aucune / Choisir une image)'; select.appendChild(emptyOpt);
+          STATIC_BOX_IMAGES.forEach(fn => { const o = document.createElement('option'); o.value = fn; o.textContent = fn; select.appendChild(o); });
+          const urlInput = document.createElement('input'); urlInput.type='text'; urlInput.placeholder='Ou coller une URL d\'image'; urlInput.className='form-control form-control-sm mb-1'; urlInput.value = doc && doc[k] ? doc[k] : '';
           urlInput.name = 'image_url';
           const hiddenInput = document.createElement('input'); hiddenInput.type='hidden'; hiddenInput.name = 'image'; hiddenInput.value = doc && doc[k] ? doc[k] : '';
           const preview = document.createElement('img'); preview.style.maxHeight='120px'; preview.className='img-fluid mt-2';
-          if (doc && doc[k]) preview.src = doc[k]; else preview.src = '{{ url_for("static", filename="img/box-placeholder.svg") }}';
-          fileInput.addEventListener('change', (ev)=>{
-            const f = ev.target.files && ev.target.files[0];
-            if (!f) return;
-            const reader = new FileReader();
-            reader.onload = function(e){ hiddenInput.value = e.target.result; preview.src = e.target.result; urlInput.value = ''; };
-            reader.readAsDataURL(f);
+          if (doc && doc[k]){
+            const match = STATIC_BOX_IMAGES.find(x => doc[k].endsWith(x));
+            if (match) select.value = match;
+            preview.src = doc[k];
+            hiddenInput.value = doc[k];
+          } else {
+            preview.src = '{{ url_for("static", filename="img/box-placeholder.svg") }}';
+          }
+          select.addEventListener('change', (ev)=>{
+            const fname = ev.target.value;
+            if (!fname){ hiddenInput.value = ''; preview.src = '{{ url_for("static", filename="img/box-placeholder.svg") }}'; return; }
+            const url = '{{ url_for("static", filename="img/") }}' + fname;
+            hiddenInput.value = url; preview.src = url; urlInput.value = '';
           });
-          // if user types URL, use it (and clear hidden)
-          urlInput.addEventListener('input', (ev)=>{ hiddenInput.value = ''; preview.src = ev.target.value || '{{ url_for("static", filename="img/box-placeholder.svg") }}'; });
-          wrapper.appendChild(label); wrapper.appendChild(fileInput); wrapper.appendChild(urlInput); wrapper.appendChild(hiddenInput); wrapper.appendChild(preview);
+          urlInput.addEventListener('input', (ev)=>{ hiddenInput.value = ev.target.value; preview.src = ev.target.value || '{{ url_for("static", filename="img/box-placeholder.svg") }}'; select.value = ''; });
+          // optional: simple file upload which stores base64 in hidden
+          const fileInput = document.createElement('input'); fileInput.type='file'; fileInput.accept='image/*'; fileInput.className='form-control form-control-sm mb-1';
+          fileInput.addEventListener('change', (ev)=>{ const f = ev.target.files && ev.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = function(e){ hiddenInput.value = e.target.result; preview.src = e.target.result; select.value = ''; urlInput.value = ''; }; reader.readAsDataURL(f); });
+          wrapper.appendChild(label); wrapper.appendChild(select); wrapper.appendChild(urlInput); wrapper.appendChild(fileInput); wrapper.appendChild(hiddenInput); wrapper.appendChild(preview);
           appended = true;
         } else {
           const input = document.createElement('input'); input.type = 'text'; input.className='form-control'; input.value = doc && doc[k] ? doc[k] : '';
@@ -450,33 +462,45 @@
         // do not allow editing of _id
         if (k === '_id') continue;
         const val = (doc[k] === null || doc[k] === undefined) ? '' : doc[k];
-        // special-case image: show URL input + preview
+        // special-case image: show select of static images + URL + file + preview
         if (k === 'image'){
-          const urlInput = document.createElement('input'); urlInput.type='text'; urlInput.className='form-control form-control-sm mb-1'; urlInput.value = val; urlInput.name = 'image';
-          const preview = document.createElement('img'); preview.style.maxHeight='80px'; preview.className='img-fluid'; preview.src = val || '{{ url_for("static", filename="img/box-placeholder.svg") }}';
-          urlInput.addEventListener('input', (ev)=>{ preview.src = ev.target.value || '{{ url_for("static", filename="img/box-placeholder.svg") }}'; });
           td.innerHTML = '';
-          td.appendChild(urlInput); td.appendChild(preview);
-        } else {
-          let input = document.createElement('input');
-          input.type = (k === 'prix_horaire') ? 'number' : 'text';
-          if (k === 'prix_horaire') input.step = '0.01';
-          if (k === 'date') input.type = 'date';
-          input.className = 'form-control form-control-sm';
-          input.value = val;
-          td.innerHTML = '';
-          td.appendChild(input);
+          const select = document.createElement('select'); select.className = 'form-select form-select-sm mb-1';
+          const emptyOpt = document.createElement('option'); emptyOpt.value = ''; emptyOpt.textContent = '(Aucune / Choisir une image)'; select.appendChild(emptyOpt);
+          STATIC_BOX_IMAGES.forEach(fn => { const o = document.createElement('option'); o.value = fn; o.textContent = fn; select.appendChild(o); });
+          const urlInput = document.createElement('input'); urlInput.type='text'; urlInput.placeholder='Ou coller une URL d\'image'; urlInput.className='form-control form-control-sm mb-1'; urlInput.value = val || '';
+          const hiddenInput = document.createElement('input'); hiddenInput.type='hidden'; hiddenInput.name = 'image'; hiddenInput.value = val || '';
+          const preview = document.createElement('img'); preview.style.maxHeight='120px'; preview.className='img-fluid mt-2';
+          if (val){ const match = STATIC_BOX_IMAGES.find(x => String(val).endsWith(x)); if (match) select.value = match; preview.src = val; hiddenInput.value = val; } else { preview.src = '{{ url_for("static", filename="img/box-placeholder.svg") }}'; }
+          select.addEventListener('change', (ev)=>{ const fname = ev.target.value; if (!fname){ hiddenInput.value = ''; preview.src = '{{ url_for("static", filename="img/box-placeholder.svg") }}'; return; } const url = '{{ url_for("static", filename="img/") }}' + fname; hiddenInput.value = url; preview.src = url; urlInput.value = ''; });
+          urlInput.addEventListener('input', (ev)=>{ hiddenInput.value = ev.target.value; preview.src = ev.target.value || '{{ url_for("static", filename="img/box-placeholder.svg") }}'; select.value = ''; });
+          const fileInput = document.createElement('input'); fileInput.type='file'; fileInput.accept='image/*'; fileInput.className='form-control form-control-sm mb-1';
+          fileInput.addEventListener('change', (ev)=>{ const f = ev.target.files && ev.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = function(e){ hiddenInput.value = e.target.result; preview.src = e.target.result; select.value = ''; urlInput.value = ''; }; reader.readAsDataURL(f); });
+          td.appendChild(select); td.appendChild(urlInput); td.appendChild(fileInput); td.appendChild(hiddenInput); td.appendChild(preview);
+          continue;
         }
+        // numeric field
+        if (k === 'prix_horaire'){
+          td.innerHTML = '';
+          const input = document.createElement('input'); input.type='number'; input.step='0.01'; input.className='form-control form-control-sm'; input.value = val;
+          td.appendChild(input);
+          continue;
+        }
+        // date field
+        if (k === 'date'){
+          td.innerHTML = '';
+          const input = document.createElement('input'); input.type='date'; input.className='form-control form-control-sm'; input.value = val;
+          td.appendChild(input);
+          continue;
+        }
+        // default text input
+        td.innerHTML = '';
+        const input = document.createElement('input'); input.type='text'; input.className='form-control form-control-sm'; input.value = val;
+        td.appendChild(input);
       }
-      // replace actions: find action td (last cell)
-      const actionTd = tds[ keys.length ];
-      actionTd._orig = actionTd.innerHTML;
-      actionTd.innerHTML = '';
-      const btnSave = document.createElement('button'); btnSave.className='btn btn-sm btn-primary me-2'; btnSave.textContent='Enregistrer';
-      const btnCancel = document.createElement('button'); btnCancel.className='btn btn-sm btn-secondary'; btnCancel.textContent='Annuler';
-      btnSave.addEventListener('click', ()=> saveRowEdit(tr, doc, keys));
-      btnCancel.addEventListener('click', ()=> revertRowEdit(tr));
-      actionTd.appendChild(btnSave); actionTd.appendChild(btnCancel);
+      // replace actions cell with Save / Cancel
+      const actionTd = tds[keys.length];
+      if (actionTd){ actionTd._orig = actionTd.innerHTML; actionTd.innerHTML = ''; const btnSave = document.createElement('button'); btnSave.className='btn btn-sm btn-primary me-2'; btnSave.textContent='Enregistrer'; const btnCancel = document.createElement('button'); btnCancel.className='btn btn-sm btn-secondary'; btnCancel.textContent='Annuler'; btnSave.addEventListener('click', ()=> saveRowEdit(tr, doc, keys)); btnCancel.addEventListener('click', ()=> revertRowEdit(tr)); actionTd.appendChild(btnSave); actionTd.appendChild(btnCancel); }
     }
 
     async function saveRowEdit(tr, doc, keys){
@@ -486,10 +510,14 @@
         const k = keys[i];
         if (k === '_id') continue;
         const td = tds[i];
-        const inp = td.querySelector('input, select');
-        if (!inp) continue;
-        let v = inp.value;
-        if (inp.type === 'number') v = v === '' ? null : Number(v);
+  // prefer a hidden 'image' input if present (used by image editor), otherwise pick first input/select
+  const hiddenImg = td.querySelector('input[type="hidden"][name="image"]');
+  let inp = hiddenImg || td.querySelector('input, select');
+  if (!inp) continue;
+  let v = inp.value;
+  // if we picked a select for image, but there's a hidden image input, prefer hidden's value
+  if (inp.tagName && inp.tagName.toLowerCase() === 'select' && hiddenImg) v = hiddenImg.value;
+  if (inp.type === 'number') v = v === '' ? null : Number(v);
         payload[k] = v;
       }
       try{

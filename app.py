@@ -474,7 +474,18 @@ def admin():
             sample.append(doc)
     except Exception:
         sample = []
-    return render_template('admin.html', server_docs=sample)
+    # list available static images for boxes (to show as selectable placeholders in admin)
+    import os
+    img_dir = os.path.join(os.path.dirname(__file__), 'static', 'img')
+    imgs = []
+    try:
+        for fname in os.listdir(img_dir):
+            # consider common web image extensions and files that include 'box' or 'hero'
+            if fname.lower().endswith(('.png', '.jpg', '.jpeg', '.svg', '.webp')):
+                imgs.append(fname)
+    except Exception:
+        imgs = []
+    return render_template('admin.html', server_docs=sample, static_box_images=imgs)
 
 
 def _admin_require():

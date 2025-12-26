@@ -571,6 +571,49 @@ def admin_api_list():
                 pass
     for d in cursor:
         docs.append(d)
+    # Enrich reservations with readable client name and box numero for UI (visual only)
+    if col in ('reservation', 'reservations'):
+        try:
+            for d in docs:
+                # user_id may be ObjectId or string
+                uid = d.get('user_id')
+                client_name = None
+                try:
+                    if uid:
+                        if isinstance(uid, str):
+                            try:
+                                uid_oid = ObjectId(uid)
+                            except Exception:
+                                uid_oid = uid
+                        else:
+                            uid_oid = uid
+                        u = users.find_one({'_id': uid_oid}) if uid_oid else None
+                        if not u:
+                            u = db.clients.find_one({'_id': uid_oid}) if uid_oid else None
+                        client_name = u.get('username') if u else None
+                except Exception:
+                    client_name = None
+                d['client_name'] = client_name
+
+                bid = d.get('box_id')
+                box_numero = None
+                try:
+                    if bid:
+                        if isinstance(bid, str):
+                            try:
+                                bid_oid = ObjectId(bid)
+                            except Exception:
+                                bid_oid = bid
+                        else:
+                            bid_oid = bid
+                        b = db.box.find_one({'_id': bid_oid}) if bid_oid else None
+                        box_numero = b.get('numero') if b else None
+                except Exception:
+                    box_numero = None
+                d['box_numero'] = box_numero
+        except Exception:
+            # enrichment failure shouldn't block response
+            pass
     # Use bson.json_util to serialize possible ObjectId/datetime inside docs
     try:
         return Response(json_util.dumps({'docs': docs}), mimetype='application/json')

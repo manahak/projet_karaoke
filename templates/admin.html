@@ -94,6 +94,12 @@
 
   const csrfToken = '{{ csrf_token() }}';
   document.addEventListener('DOMContentLoaded', () => {
+  // Header label mapping for readability
+  const headerLabels = {
+    '_id':'ID', 'numero':'Numéro', 'places':'Places', 'type':'Type', 'prix_horaire':'Prix /h', 'status':'Statut',
+    'date':'Date', 'heure_debut':'Heure début', 'heure_fin':'Heure fin', 'user_id':'Client ID', 'box_id':'Box ID',
+    'client_name':'Client', 'box_numero':'Box', 'username':'Nom', 'email':'Email', 'created_at':'Créé', 'updated_at':'Modifié', 'notes':'Notes'
+  };
   const collectionButtons = document.querySelectorAll('#adminCollections [data-col]');
     let currentCol = 'users';
     const head = document.getElementById('adminHead');
@@ -142,11 +148,15 @@
         // build table header: for 'box' show only relevant box fields, otherwise derive keys from first doc
         let keys;
         if (col === 'box' || currentCol === 'box'){
-          keys = ['_id','numero','places','type','prix_horaire','status'];
+          // show only relevant box fields (status intentionally omitted)
+          keys = ['_id','numero','places','type','prix_horaire'];
+        } else if (col === 'reservation' || currentCol === 'reservation'){
+          // show readable reservation columns and use enriched client/box fields
+          keys = ['_id','date','heure_debut','heure_fin','client_name','box_numero','status','notes'];
         } else {
           keys = Object.keys(docs[0]);
         }
-        head.innerHTML = '<tr>' + keys.map(k => `<th>${k}</th>`).join('') + '<th>Actions</th></tr>';
+        head.innerHTML = '<tr>' + keys.map(k => `<th>${headerLabels[k] || k}</th>`).join('') + '<th>Actions</th></tr>';
         body.innerHTML = '';
         docs.forEach(d => {
           const tr = document.createElement('tr');

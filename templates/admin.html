@@ -145,7 +145,18 @@
         if (adminSearch && adminSearch.value.trim()) params.set('q', adminSearch.value.trim());
         if (adminSort && adminSort.value) params.set('sort', adminSort.value);
         const resp = await fetch(`/admin/api/list?${params.toString()}`);
-        const data = await resp.json();
+        const text = await resp.text();
+        let data;
+        try{
+          data = JSON.parse(text);
+        }catch(err){
+          console.error('Failed to parse JSON from /admin/api/list:', err);
+          console.error('Raw response:', text);
+          showAlert('Réponse API inattendue — voir console pour le détail','danger');
+          // also display raw text below table for debugging
+          body.innerHTML = '<tr><td colspan="3"><pre style="white-space:pre-wrap;">'+escapeHtml(text)+'</pre></td></tr>';
+          return;
+        }
         if (data.error){ showAlert(data.error,'danger'); return; }
         const docs = data.docs || [];
         if (docs.length === 0){ head.innerHTML = '<tr><th>_id</th><th>Document</th><th>Actions</th></tr>'; body.innerHTML = '<tr><td colspan="3" class="text-muted">Aucun document</td></tr>'; return; }
@@ -229,6 +240,10 @@
     collectionButtons.forEach(b => b.addEventListener('click', ()=> loadCollection(b.dataset.col)));
     // initial load
     loadCollection('users');
+    // helper to escape HTML when showing raw responses
+    function escapeHtml(str){
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
   });
   </script>
 {% endblock %}

@@ -443,6 +443,51 @@ def logout():
     session.pop("user", None)
     return redirect(url_for("index"))
 
+
+@app.route('/account_update', methods=['POST'])
+def account_update():
+    # Update current user's profile (username, email, optional password)
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    user_session = session.get('user')
+    try:
+        user_oid = ObjectId(user_session.get('user_id'))
+    except Exception:
+        flash('Utilisateur introuvable.', 'error')
+        return redirect(url_for('dashboard'))
+
+    username = request.form.get('username')
+    email = request.form.get('email')
+    password = request.form.get('password')
+
+    if not username or not email:
+        flash('Nom d\'utilisateur et e‑mail requis.', 'error')
+        return redirect(url_for('dashboard'))
+
+    updates = {'username': username, 'email': email}
+    if password:
+        # hash password
+        hashed = generate_password_hash(password)
+        updates['password'] = hashed
+
+    # Try updating the main users collection first, then fallback to clients if needed
+    result = users.update_one({'_id': user_oid}, {'$set': updates})
+    if result.matched_count == 0:
+        # try clients collection for legacy entries
+        result2 = db.clients.update_one({'_id': user_oid}, {'$set': updates})
+        if result2.matched_count == 0:
+            flash('Mise à jour impossible : utilisateur introuvable.', 'error')
+            return redirect(url_for('dashboard'))
+
+    # Update session username for immediate UI feedback
+    session['user']['username'] = username
+    # If email stored in session, update it too
+    session['user']['email'] = email
+
+    flash('Profil mis à jour.', 'success')
+    return redirect(url_for('dashboard'))
+
 # --------------------------------------------------------
 #   FONCTION POUR CRÉER UN ADMIN (exécutée 1 fois)
 # --------------------------------------------------------

@@ -14,7 +14,7 @@
   <style>
     /* light gray gradient background for the whole site */
     body {
-      background: linear-gradient(180deg, #f7f8f9 0%, #eceff1 100%) !important;
+      background: linear-gradient(180deg, #e7ecf0 0%, #c8d3ca 100%) !important;
       min-height: 100vh;
     }
     /* ensure sections with transparent backgrounds show the gradient */
@@ -36,13 +36,11 @@
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('index') }}">Accueil</a>
             </li>
+            {% if not session.get('user') %}
             <li class="nav-item">
-              {% if session.get('user') %}
-                <a class="nav-link" href="{{ url_for('dashboard') }}">Mon compte</a>
-              {% else %}
-                <a class="nav-link" href="{{ url_for('login') }}">Mon compte</a>
-              {% endif %}
+              <a class="nav-link" href="{{ url_for('login') }}">Mon compte</a>
             </li>
+            {% endif %}
             {% if session.get('user') %}
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">

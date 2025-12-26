@@ -62,105 +62,155 @@
                 </section>
             </div>
 
-            <div class="col-md-4">
-                <h4>Modifier vos informations</h4>
-                <p class="text-muted">Changez votre nom, e‑mail ou mot de passe. Les réservations ne seront pas modifiées.</p>
-                <form method="POST" action="{{ url_for('account_update') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Nom d'utilisateur</label>
-                        <input id="username" name="username" class="form-control" value="{{ user.username }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Adresse e‑mail</label>
-                                                <input id="email" name="email" type="email" class="form-control" value="{{ user.email if user.email is defined else '' }}" required>
-                    </div>
-                                        <div class="mb-3">
-                                                <label for="email_confirm" class="form-label">Confirmer l'adresse e‑mail</label>
-                                                <input id="email_confirm" name="email_confirm" type="email" class="form-control" value="{{ user.email if user.email is defined else '' }}" required>
+                        <div class="col-md-4">
+                                <h4>Modifier vos informations</h4>
+                                <p class="text-muted">Changez individuellement votre nom, e‑mail ou mot de passe. Les réservations ne seront pas modifiées.</p>
+
+                                <ul class="list-group">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>Nom d'utilisateur</strong>
+                                            <div class="text-muted">{{ user.username }}</div>
                                         </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Nouveau mot de passe <small class="text-muted">(laisser vide pour conserver l'actuel)</small></label>
-                        <input id="password" name="password" type="password" class="form-control">
-                    </div>
-                    <button class="btn btn-primary" type="submit">Enregistrer les modifications</button>
-                </form>
-                
-                                <!-- Confirmation modal -->
-                                <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#usernameModal">Modifier</button>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>Adresse e‑mail</strong>
+                                            <div class="text-muted">{{ user.email if user.email is defined else '(non renseigné)' }}</div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#emailModal">Modifier</button>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>Mot de passe</strong>
+                                            <div class="text-muted">••••••••</div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#passwordModal">Modifier</button>
+                                    </li>
+                                </ul>
+
+                                <!-- Username modal -->
+                                <div class="modal fade" id="usernameModal" tabindex="-1" aria-labelledby="usernameModalLabel" aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered">
                                         <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title" id="confirmModalLabel">Confirmer les modifications</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <p id="confirmSummary">Vous êtes sur le point de modifier vos informations :</p>
-                                                <ul>
-                                                    <li id="confirmUsername"></li>
-                                                    <li id="confirmEmail"></li>
-                                                    <li id="confirmPassword"></li>
-                                                </ul>
-                                                <p class="text-muted"><small>Les réservations existantes ne seront pas modifiées.</small></p>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                <button type="button" id="confirmSubmitBtn" class="btn btn-primary">Confirmer</button>
-                                            </div>
+                                            <form method="POST" action="{{ url_for('account_update') }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="action" value="username">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="usernameModalLabel">Modifier le nom d'utilisateur</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label for="modal_username" class="form-label">Nom d'utilisateur</label>
+                                                        <input id="modal_username" name="username" class="form-control" value="{{ user.username }}" required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                    <button class="btn btn-primary" type="submit">Enregistrer</button>
+                                                </div>
+                                            </form>
                                         </div>
                                     </div>
                                 </div>
-            </div>
+
+                                <!-- Email modal -->
+                                <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <form method="POST" action="{{ url_for('account_update') }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="action" value="email">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="emailModalLabel">Modifier l'adresse e‑mail</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label for="modal_email" class="form-label">Nouvelle adresse e‑mail</label>
+                                                        <input id="modal_email" name="email" type="email" class="form-control" value="{{ user.email if user.email is defined else '' }}" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="modal_email_confirm" class="form-label">Confirmer l'adresse e‑mail</label>
+                                                        <input id="modal_email_confirm" name="email_confirm" type="email" class="form-control" value="{{ user.email if user.email is defined else '' }}" required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                    <button class="btn btn-primary" type="submit">Enregistrer</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Password modal -->
+                                <div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <form method="POST" action="{{ url_for('account_update') }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="action" value="password">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="passwordModalLabel">Modifier le mot de passe</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label for="current_password" class="form-label">Mot de passe actuel</label>
+                                                        <input id="current_password" name="current_password" type="password" class="form-control" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="new_password" class="form-label">Nouveau mot de passe</label>
+                                                        <input id="new_password" name="new_password" type="password" class="form-control" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="new_password_confirm" class="form-label">Confirmer le nouveau mot de passe</label>
+                                                        <input id="new_password_confirm" name="new_password_confirm" type="password" class="form-control" required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                    <button class="btn btn-primary" type="submit">Enregistrer</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                        </div>
         </div>
 {% endblock %}
-
 {% block scripts %}
 <script>
+// Small client-side validation for modals (email match and password confirmation)
 document.addEventListener('DOMContentLoaded', function(){
-        const form = document.querySelector("form[action='{{ url_for('account_update') }}']");
-    if (!form) return;
+    // email modal
+    const emailForm = document.querySelector('#emailModal form');
+    if (emailForm){
+        emailForm.addEventListener('submit', function(e){
+            const em = document.getElementById('modal_email');
+            const emc = document.getElementById('modal_email_confirm');
+            if (em.value.trim() !== emc.value.trim()){
+                e.preventDefault();
+                alert('Les adresses e‑mail ne correspondent pas.');
+            }
+        });
+    }
 
-    const email = document.getElementById('email');
-    const emailConfirm = document.getElementById('email_confirm');
-    const password = document.getElementById('password');
-    const username = document.getElementById('username');
-
-    const confirmModalEl = document.getElementById('confirmModal');
-    const confirmModal = new bootstrap.Modal(confirmModalEl);
-    const confirmUsername = document.getElementById('confirmUsername');
-    const confirmEmail = document.getElementById('confirmEmail');
-    const confirmPassword = document.getElementById('confirmPassword');
-    const confirmSubmitBtn = document.getElementById('confirmSubmitBtn');
-
-    form.addEventListener('submit', function(e){
-        // basic client-side validation: email match
-        if (email.value.trim() !== emailConfirm.value.trim()){
-            e.preventDefault();
-            alert('Les adresses e‑mail ne correspondent pas.');
-            return;
-        }
-
-        // If no sensitive change, allow submit
-        const emailChanged = email.value.trim() !== '{{ user.email if user.email is defined else "" }}';
-        const passwordFilled = password.value.trim() !== '';
-        if (!emailChanged && !passwordFilled) {
-            // nothing sensitive changed, proceed
-            return;
-        }
-
-        // Otherwise, show confirmation modal
-        e.preventDefault();
-        confirmUsername.textContent = 'Nom d\'utilisateur : ' + username.value;
-        confirmEmail.textContent = emailChanged ? ('Nouvel e‑mail : ' + email.value) : 'E‑mail inchangé';
-        confirmPassword.textContent = passwordFilled ? 'Un nouveau mot de passe sera défini.' : 'Mot de passe inchangé.';
-        confirmModal.show();
-    });
-
-    confirmSubmitBtn.addEventListener('click', function(){
-        // submit the form programmatically
-        confirmModal.hide();
-        form.submit();
-    });
+    // password modal
+    const pwForm = document.querySelector('#passwordModal form');
+    if (pwForm){
+        pwForm.addEventListener('submit', function(e){
+            const np = document.getElementById('new_password');
+            const npc = document.getElementById('new_password_confirm');
+            if (np.value.trim() !== npc.value.trim()){
+                e.preventDefault();
+                alert('Le nouveau mot de passe et sa confirmation ne correspondent pas.');
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

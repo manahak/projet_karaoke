@@ -446,7 +446,7 @@ def logout():
 
 @app.route('/account_update', methods=['POST'])
 def account_update():
-    # Update current user's profile (username, email, optional password)
+    # Update current user's profile per-field: action in {'username','email','password'}
     if 'user' not in session:
         return redirect(url_for('login'))
 
@@ -457,35 +457,62 @@ def account_update():
         flash('Utilisateur introuvable.', 'error')
         return redirect(url_for('dashboard'))
 
-    username = request.form.get('username')
-    email = request.form.get('email')
-    password = request.form.get('password')
+    action = request.form.get('action')
+    # find which collection holds the user
+    user_doc = users.find_one({'_id': user_oid})
+    user_collection = users
+    if not user_doc:
+        user_doc = db.clients.find_one({'_id': user_oid})
+        user_collection = db.clients
 
-    if not username or not email:
-        flash('Nom d\'utilisateur et e‑mail requis.', 'error')
+    if not user_doc:
+        flash('Utilisateur introuvable.', 'error')
         return redirect(url_for('dashboard'))
 
-    updates = {'username': username, 'email': email}
-    if password:
-        # hash password
-        hashed = generate_password_hash(password)
-        updates['password'] = hashed
-
-    # Try updating the main users collection first, then fallback to clients if needed
-    result = users.update_one({'_id': user_oid}, {'$set': updates})
-    if result.matched_count == 0:
-        # try clients collection for legacy entries
-        result2 = db.clients.update_one({'_id': user_oid}, {'$set': updates})
-        if result2.matched_count == 0:
-            flash('Mise à jour impossible : utilisateur introuvable.', 'error')
+    if action == 'username':
+        username = request.form.get('username')
+        if not username:
+            flash('Nom d\'utilisateur requis.', 'error')
             return redirect(url_for('dashboard'))
+        user_collection.update_one({'_id': user_oid}, {'$set': {'username': username}})
+        session['user']['username'] = username
+        flash('Nom d\'utilisateur mis à jour.', 'success')
+        return redirect(url_for('dashboard'))
 
-    # Update session username for immediate UI feedback
-    session['user']['username'] = username
-    # If email stored in session, update it too
-    session['user']['email'] = email
+    if action == 'email':
+        email = request.form.get('email')
+        email_confirm = request.form.get('email_confirm')
+        if not email or not email_confirm:
+            flash('Veuillez renseigner et confirmer la nouvelle adresse e‑mail.', 'error')
+            return redirect(url_for('dashboard'))
+        if email.strip() != email_confirm.strip():
+            flash('Les adresses e‑mail ne correspondent pas.', 'error')
+            return redirect(url_for('dashboard'))
+        user_collection.update_one({'_id': user_oid}, {'$set': {'email': email}})
+        session['user']['email'] = email
+        flash('Adresse e‑mail mise à jour.', 'success')
+        return redirect(url_for('dashboard'))
 
-    flash('Profil mis à jour.', 'success')
+    if action == 'password':
+        current = request.form.get('current_password')
+        new = request.form.get('new_password')
+        new_confirm = request.form.get('new_password_confirm')
+        if not current or not new or not new_confirm:
+            flash('Veuillez fournir l\'ancien mot de passe et le nouveau (confirmation).', 'error')
+            return redirect(url_for('dashboard'))
+        if new != new_confirm:
+            flash('Le nouveau mot de passe et sa confirmation ne correspondent pas.', 'error')
+            return redirect(url_for('dashboard'))
+        stored_pw = user_doc.get('password')
+        if not stored_pw or not check_password_hash(stored_pw, current):
+            flash('Mot de passe actuel incorrect.', 'error')
+            return redirect(url_for('dashboard'))
+        hashed = generate_password_hash(new)
+        user_collection.update_one({'_id': user_oid}, {'$set': {'password': hashed}})
+        flash('Mot de passe mis à jour.', 'success')
+        return redirect(url_for('dashboard'))
+
+    flash('Action non reconnue.', 'error')
     return redirect(url_for('dashboard'))
 
 # --------------------------------------------------------

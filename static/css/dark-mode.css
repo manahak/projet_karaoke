@@ -15,6 +15,9 @@ body{
   color: var(--bs-body-color) !important;
 }
 
+/* Reserve space for fixed navbar so it doesn't overlap content */
+body { padding-top: 72px !important; }
+
 /* Navbar */
 .navbar{
   background-color: #071821 !important;
@@ -33,18 +36,38 @@ body{
   box-shadow: 0 6px 18px rgba(0,0,0,0.5);
 }
 
-/* Tables */
-.table{
+/* Force common white/light backgrounds to dark variants */
+.bg-white, .bg-light, .card, .card-body, .jumbotron, .panel, .well, .hero {
+  background-color: var(--bs-card-bg) !important;
   color: var(--bs-body-color) !important;
   border-color: var(--bs-border-color) !important;
 }
-.table thead th{
-  background-color: rgba(255,255,255,0.03);
+
+/* List groups and form groups */
+.list-group-item, .list-group-item-action {
+  background-color: transparent !important;
   color: var(--bs-body-color) !important;
-  border-bottom: 1px solid var(--bs-border-color);
+  border-color: rgba(255,255,255,0.03) !important;
+}
+
+/* Tables */
+.table{
+  color: var(--bs-body-color) !important;
+  border-color: rgba(255,255,255,0.03) !important;
+  background-color: transparent !important;
+}
+.table thead th{
+  background-color: rgba(255,255,255,0.02) !important;
+  color: var(--bs-body-color) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.04) !important;
 }
 .table tbody tr td{
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.02) !important;
+}
+
+/* Ensure table responsive wrapper doesn't force white background */
+.table-responsive, .table-responsive > .table {
+  background-color: transparent !important;
 }
 
 /* Inputs and selects */
@@ -73,7 +96,7 @@ body{
 
 /* Alerts */
 .alert{
-  background-color: rgba(255,255,255,0.03);
+  background-color: rgba(255,255,255,0.02) !important;
   color: var(--bs-body-color) !important;
   border: 1px solid rgba(255,255,255,0.03) !important;
 }

@@ -50,36 +50,7 @@
                 <tbody id="adminBody"></tbody>
               </table>
             </div>
-            <!-- Server-side debug table: simple rendering of sample docs -->
-            <h6 class="mt-3">Aperçu serveur (débogage)</h6>
-            <div class="table-responsive">
-              <table class="table table-bordered table-sm">
-                <thead>
-                  <tr>
-                    {% if server_docs and server_docs|length > 0 %}
-                      {% for k in server_docs[0].keys() %}
-                        <th>{{ k }}</th>
-                      {% endfor %}
-                    {% else %}
-                      <th>_id</th><th>Document</th>
-                    {% endif %}
-                  </tr>
-                </thead>
-                <tbody>
-                  {% if server_docs and server_docs|length > 0 %}
-                    {% for d in server_docs %}
-                      <tr>
-                        {% for v in d.values() %}
-                          <td>{{ v }}</td>
-                        {% endfor %}
-                      </tr>
-                    {% endfor %}
-                  {% else %}
-                    <tr><td colspan="2" class="text-muted">Aucun document serveur dans l'extrait.</td></tr>
-                  {% endif %}
-                </tbody>
-              </table>
-            </div>
+            <!-- Debug server-side table removed -->
           </div>
         </div>
       </div>
@@ -113,6 +84,14 @@
   </div>
 
   <script>
+  // Small styles for shortened id cells
+  const style = document.createElement('style');
+  style.innerHTML = `
+  .short-id { max-width:140px; display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+  .short-id::after { content: " ⧉"; color: #6c757d; margin-left:4px; }
+  `;
+  document.head.appendChild(style);
+
   const csrfToken = '{{ csrf_token() }}';
   document.addEventListener('DOMContentLoaded', () => {
   const collectionButtons = document.querySelectorAll('#adminCollections [data-col]');
@@ -160,15 +139,45 @@
         if (data.error){ showAlert(data.error,'danger'); return; }
         const docs = data.docs || [];
         if (docs.length === 0){ head.innerHTML = '<tr><th>_id</th><th>Document</th><th>Actions</th></tr>'; body.innerHTML = '<tr><td colspan="3" class="text-muted">Aucun document</td></tr>'; return; }
-        // build table header from keys of first doc
-        const keys = Object.keys(docs[0]);
+        // build table header: for 'box' show only relevant box fields, otherwise derive keys from first doc
+        let keys;
+        if (col === 'box' || currentCol === 'box'){
+          keys = ['_id','numero','places','type','prix_horaire','status'];
+        } else {
+          keys = Object.keys(docs[0]);
+        }
         head.innerHTML = '<tr>' + keys.map(k => `<th>${k}</th>`).join('') + '<th>Actions</th></tr>';
         body.innerHTML = '';
         docs.forEach(d => {
           const tr = document.createElement('tr');
           keys.forEach(k => {
             const td = document.createElement('td');
-            td.textContent = (d[k] === null || d[k] === undefined) ? '' : (typeof d[k] === 'object' ? JSON.stringify(d[k]) : String(d[k]));
+            const val = (d[k] === null || d[k] === undefined) ? '' : d[k];
+            // shorten id-like fields and make them copyable
+            if ((k === '_id' || k === 'user_id' || k === 'box_id') && val){
+              const full = (typeof val === 'object') ? JSON.stringify(val) : String(val);
+              const short = full.length > 12 ? (full.slice(0,8) + '...') : full;
+              const span = document.createElement('span');
+              span.className = 'short-id';
+              span.textContent = short;
+              span.setAttribute('data-full-id', full);
+              span.setAttribute('data-bs-toggle','tooltip');
+              span.setAttribute('data-bs-placement','top');
+              span.title = 'Cliquer pour copier l\'ID complet';
+              span.addEventListener('click', async (ev)=>{
+                const toCopy = ev.currentTarget.getAttribute('data-full-id');
+                try{
+                  await navigator.clipboard.writeText(toCopy);
+                  showAlert('ID copié dans le presse-papiers','success');
+                }catch(e){
+                  // fallback
+                  const ta = document.createElement('textarea'); ta.value = toCopy; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); showAlert('ID copié','success'); }catch(err){ showAlert('Impossible de copier automatiquement','warning'); } ta.remove();
+                }
+              });
+              td.appendChild(span);
+            } else {
+              td.textContent = (typeof val === 'object') ? JSON.stringify(val) : String(val);
+            }
             tr.appendChild(td);
           });
           const actions = document.createElement('td');
@@ -185,6 +194,10 @@
           tr.appendChild(actions);
           body.appendChild(tr);
         });
+        // initialize Bootstrap tooltips for short-id elements
+        try{
+          document.querySelectorAll('.short-id').forEach(el => { try{ new bootstrap.Tooltip(el); }catch(e){} });
+        }catch(e){}
       }catch(err){ console.error(err); showAlert('Erreur lors du chargement','danger'); }
     }
 

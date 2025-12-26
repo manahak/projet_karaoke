@@ -41,7 +41,11 @@ SLOTS = [
 @app.route('/')
 def index():
     # Page d'accueil publique — afficher les boxes disponibles
-    boxes_cursor = db.box.find()
+    # order by position if present, then numero
+    try:
+        boxes_cursor = db.box.find().sort([('position', 1), ('numero', 1)])
+    except Exception:
+        boxes_cursor = db.box.find()
     boxes = []
     for b in boxes_cursor:
         boxes.append({
@@ -668,6 +672,19 @@ def admin_api_create():
         payload['password'] = generate_password_hash(payload['password'])
     # remove _id if present
     payload.pop('_id', None)
+    # If creating a box, ensure it has a numeric 'position' (append at end if missing)
+    if col == 'box':
+        try:
+            if 'position' not in payload or payload.get('position') is None:
+                # compute next position as max(position)+1 or count
+                agg = list(coll.find({}, {'position': 1}).sort('position', -1).limit(1))
+                if agg and agg[0].get('position') is not None:
+                    payload['position'] = int(agg[0].get('position')) + 1
+                else:
+                    # fallback to count
+                    payload['position'] = coll.count_documents({})
+        except Exception:
+            payload['position'] = 0
     res = coll.insert_one(payload)
     # log admin action
     try:

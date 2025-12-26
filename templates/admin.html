@@ -40,6 +40,7 @@
             </div>
             <div class="mt-3">
               <button id="btnNew" class="btn btn-sm btn-primary">Ajouter</button>
+              <button id="btnSaveOrder" class="btn btn-sm btn-outline-secondary ms-2" style="display:none;">Enregistrer l'ordre</button>
             </div>
           </div>
           <div class="col-md-9">
@@ -281,6 +282,15 @@
         try{
           document.querySelectorAll('.short-id').forEach(el => { try{ new bootstrap.Tooltip(el); }catch(e){} });
         }catch(e){}
+        // If we're viewing boxes, enable drag-and-drop reorder and show save button
+        if (currentCol === 'box'){
+          const saveBtn = document.getElementById('btnSaveOrder');
+          if (saveBtn) saveBtn.style.display = 'inline-block';
+          enableBoxReorder();
+        } else {
+          const saveBtn = document.getElementById('btnSaveOrder');
+          if (saveBtn) saveBtn.style.display = 'none';
+        }
       }catch(err){ console.error(err); showAlert('Erreur lors du chargement','danger'); }
     }
 
@@ -548,6 +558,57 @@
     // helper to escape HTML when showing raw responses
     function escapeHtml(str){
       return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // --- Drag & drop reorder helpers for boxes ---
+    function enableBoxReorder(){
+      const rows = Array.from(document.querySelectorAll('#adminBody tr'));
+      rows.forEach(r => { r.draggable = true; r.classList.remove('drag-over'); });
+      let dragSrc = null;
+      document.querySelectorAll('#adminBody tr').forEach(row => {
+        row.addEventListener('dragstart', (e)=>{ dragSrc = row; row.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move'; });
+        row.addEventListener('dragend', ()=>{ if (dragSrc) dragSrc.style.opacity = ''; document.querySelectorAll('#adminBody tr').forEach(r=> r.classList.remove('drag-over')); dragSrc = null; });
+        row.addEventListener('dragover', (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.classList.add('drag-over'); });
+        row.addEventListener('dragleave', ()=>{ row.classList.remove('drag-over'); });
+        row.addEventListener('drop', (e)=>{
+          e.stopPropagation();
+          row.classList.remove('drag-over');
+          if (!dragSrc || dragSrc === row) return;
+          // swap nodes: insert dragged before target, preserving order
+          const tbody = row.parentNode;
+          // determine positions
+          const srcIndex = Array.from(tbody.children).indexOf(dragSrc);
+          const tgtIndex = Array.from(tbody.children).indexOf(row);
+          if (srcIndex < tgtIndex) {
+            tbody.insertBefore(dragSrc, row.nextSibling);
+          } else {
+            tbody.insertBefore(dragSrc, row);
+          }
+        });
+      });
+      // attach save handler
+      const saveBtn = document.getElementById('btnSaveOrder');
+      if (saveBtn){
+        saveBtn.onclick = async function(){
+          // collect order and send updates
+          const rowsNow = Array.from(document.querySelectorAll('#adminBody tr'));
+          const updates = [];
+          rowsNow.forEach((r, idx) => {
+            const idCell = r.querySelector('.short-id');
+            if (!idCell) return;
+            const id = idCell.getAttribute('data-full-id');
+            updates.push({id, position: idx});
+          });
+          try{
+            // send updates sequentially to avoid overwhelming DB; small number of boxes expected
+            for (const u of updates){
+              await fetch('/admin/api/update', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrfToken}, body: JSON.stringify({col: 'box', id: u.id, doc: {position: u.position}})});
+            }
+            showAlert('Ordre enregistré','success');
+            loadCollection('box');
+          }catch(err){ console.error(err); showAlert('Erreur lors de l\'enregistrement de l\'ordre','danger'); }
+        };
+      }
     }
   });
   </script>

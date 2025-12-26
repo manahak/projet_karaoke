@@ -3,19 +3,24 @@
 {% block title %}Accueil - Karaoke Box & Resto{% endblock %}
 
 {% block content %}
-    <div class="py-5 text-center">
-        <h1 class="display-5">Bienvenue chez Karaoke Box & Resto</h1>
-        <p class="lead">Réservez une box karaoké ou commandez depuis notre menu — deux expériences, un seul lieu.</p>
+    <div class="hero position-relative mb-4">
+        <img src="{{ url_for('static', filename='img/hero-placeholder.svg') }}" alt="Hero" class="w-100 d-block" style="height:320px; object-fit:cover;">
+        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
+            <div class="text-center text-white" style="z-index:2;">
+                <h1 class="display-5">Bienvenue chez Karaoke Box &amp; Resto</h1>
+                <p class="lead">Réservez une box karaoké ou commandez depuis notre menu — deux expériences, un seul lieu.</p>
                 <p>
-                        {% if not session.get('user') %}
-                            <a class="btn btn-primary" href="{{ url_for('login') }}">Me connecter</a>
-                        {% else %}
-                            <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Tableau de bord</a>
-                        {% endif %}
-                        {% if session.get('user') and session.get('user')['role'] == 'admin' %}
-                            <a class="btn btn-outline-dark ms-2" href="{{ url_for('admin') }}">Admin</a>
-                        {% endif %}
+                    {% if not session.get('user') %}
+                        <a class="btn btn-primary" href="{{ url_for('login') }}">Me connecter</a>
+                    {% else %}
+                        <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Tableau de bord</a>
+                    {% endif %}
+                    {% if session.get('user') and session.get('user')['role'] == 'admin' %}
+                        <a class="btn btn-outline-light ms-2" href="{{ url_for('admin') }}">Admin</a>
+                    {% endif %}
                 </p>
+            </div>
+        </div>
     </div>
 
     <div class="row">
@@ -33,8 +38,13 @@
                     <div class="col-md-4 mb-3">
                         <div class="card h-100">
                                         <div class="card-body">
-                                            <h5 class="card-title">Box #{{ box.numero }} — {{ box.nom|default(box.type)|capitalize }}</h5>
-                                            <p class="card-text">Places : {{ box.places }}<br>Prix : {{ box.prix_horaire }} €</p>
+                                                                                        <h5 class="card-title">Box #{{ box.numero }} — {{ box.nom|default(box.type)|capitalize }}</h5>
+                                                                                        {% if box.image %}
+                                                                                            <div class="mb-2"><img src="{{ box.image }}" alt="Box {{ box.numero }}" class="img-fluid" style="max-height:120px; object-fit:cover;"></div>
+                                                                                        {% else %}
+                                                                                            <div class="mb-2"><img src="{{ url_for('static', filename='img/box-placeholder.svg') }}" alt="Placeholder" class="img-fluid" style="max-height:120px; object-fit:cover;"></div>
+                                                                                        {% endif %}
+                                                                                        <p class="card-text">Places : {{ box.places }}<br>Prix : {{ box.prix_horaire }} €</p>
                                             <p class="text-muted small">Sélectionnez une date puis choisissez un créneau de 2 heures.</p>
                                         </div>
                                         <div class="card-footer bg-transparent">

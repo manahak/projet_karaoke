@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="420" viewBox="0 0 1600 420">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0" stop-color="#111827" />
+      <stop offset="1" stop-color="#374151" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="420" fill="url(#g)" />
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="44" fill="#f3f4f6">Karaoke Box &amp; Resto</text>
+</svg>

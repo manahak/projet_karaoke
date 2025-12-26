@@ -125,6 +125,7 @@
   // Header label mapping for readability
   const headerLabels = {
   '_id':'ID', 'numero':'Numéro', 'places':'Places', 'nom':'Nom', 'prix_horaire':'Prix', 'status':'Statut',
+    'image':'Image',
     'date':'Date', 'heure_debut':'Heure début', 'heure_fin':'Heure fin', 'user_id':'Client ID', 'box_id':'Box ID',
     'client_name':'Client', 'box_numero':'Box', 'username':'Nom', 'email':'Email', 'password':'Mot de passe', 'created_at':'Créé', 'updated_at':'Modifié', 'notes':'Notes'
   };
@@ -209,6 +210,19 @@
             const td = document.createElement('td');
             const val = (d[k] === null || d[k] === undefined) ? '' : d[k];
             // Render values normally; the inline row editor (toggleRowEdit) will create inputs when entering edit mode
+            // If this is the 'nom' column, show name and an optional thumbnail below
+            if (k === 'nom'){
+              td.textContent = (typeof val === 'object') ? JSON.stringify(val) : String(val);
+              if (d.image){
+                const imgWrap = document.createElement('div'); imgWrap.className = 'mt-1';
+                const img = document.createElement('img'); img.src = d.image || '{{ url_for("static", filename="img/box-placeholder.svg") }}';
+                img.className = 'img-thumbnail'; img.style.maxHeight = '80px'; img.style.display = 'block';
+                imgWrap.appendChild(img);
+                td.appendChild(imgWrap);
+              }
+              tr.appendChild(td);
+              return;
+            }
             // shorten id-like fields and make them copyable; include password as sensitive but copyable (hash)
             if ((k === '_id' || k === 'user_id' || k === 'box_id' || k === 'password') && val){
               const full = (typeof val === 'object') ? JSON.stringify(val) : String(val);
@@ -273,7 +287,7 @@
       adminFormFields.innerHTML = '';
       // decide keys to show similar to table header
       let keys = [];
-      if (col === 'box') keys = ['numero','places','nom','prix_horaire'];
+  if (col === 'box') keys = ['numero','places','nom','prix_horaire','image'];
       else if (col === 'reservation') keys = ['date','heure_debut','heure_fin','user_id','box_id','status','notes'];
       else if (col === 'users') keys = ['username','email','role'];
       else keys = Object.keys(doc || {});
@@ -281,21 +295,50 @@
       keys.forEach(k => {
         const wrapper = document.createElement('div'); wrapper.className = 'mb-2';
         const label = document.createElement('label'); label.className = 'form-label'; label.textContent = headerLabels[k] || k;
-        let input;
+        let appended = false;
         if (k === 'role'){
-          input = document.createElement('select'); input.className = 'form-select';
+          const input = document.createElement('select'); input.className = 'form-select';
           ['client','admin'].forEach(opt => { const o = document.createElement('option'); o.value = opt; o.textContent = opt; input.appendChild(o); });
           input.value = doc && doc[k] ? doc[k] : 'client';
+          input.name = k;
+          wrapper.appendChild(label); wrapper.appendChild(input);
+          appended = true;
         } else if (k === 'prix_horaire'){
-          input = document.createElement('input'); input.type = 'number'; input.step = '0.01'; input.className='form-control'; input.value = doc && doc[k] ? doc[k] : '';
+          const input = document.createElement('input'); input.type = 'number'; input.step = '0.01'; input.className='form-control'; input.value = doc && doc[k] ? doc[k] : '';
+          input.name = k;
+          wrapper.appendChild(label); wrapper.appendChild(input);
+          appended = true;
         } else if (k === 'date'){
-          input = document.createElement('input'); input.type='date'; input.className='form-control'; input.value = doc && doc[k] ? doc[k] : '';
+          const input = document.createElement('input'); input.type='date'; input.className='form-control'; input.value = doc && doc[k] ? doc[k] : '';
+          input.name = k;
+          wrapper.appendChild(label); wrapper.appendChild(input);
+          appended = true;
+        } else if (k === 'image'){
+          // image: allow file upload (converted to base64) AND a fallback URL input
+          const fileInput = document.createElement('input'); fileInput.type='file'; fileInput.accept='image/*'; fileInput.className='form-control form-control-sm mb-1';
+          const urlInput = document.createElement('input'); urlInput.type='text'; urlInput.placeholder='URL de l\'image (ou laisser vide si upload)'; urlInput.className='form-control'; urlInput.value = doc && doc[k] ? doc[k] : '';
+          urlInput.name = 'image_url';
+          const hiddenInput = document.createElement('input'); hiddenInput.type='hidden'; hiddenInput.name = 'image'; hiddenInput.value = doc && doc[k] ? doc[k] : '';
+          const preview = document.createElement('img'); preview.style.maxHeight='120px'; preview.className='img-fluid mt-2';
+          if (doc && doc[k]) preview.src = doc[k]; else preview.src = '{{ url_for("static", filename="img/box-placeholder.svg") }}';
+          fileInput.addEventListener('change', (ev)=>{
+            const f = ev.target.files && ev.target.files[0];
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = function(e){ hiddenInput.value = e.target.result; preview.src = e.target.result; urlInput.value = ''; };
+            reader.readAsDataURL(f);
+          });
+          // if user types URL, use it (and clear hidden)
+          urlInput.addEventListener('input', (ev)=>{ hiddenInput.value = ''; preview.src = ev.target.value || '{{ url_for("static", filename="img/box-placeholder.svg") }}'; });
+          wrapper.appendChild(label); wrapper.appendChild(fileInput); wrapper.appendChild(urlInput); wrapper.appendChild(hiddenInput); wrapper.appendChild(preview);
+          appended = true;
         } else {
-          input = document.createElement('input'); input.type = 'text'; input.className='form-control'; input.value = doc && doc[k] ? doc[k] : '';
+          const input = document.createElement('input'); input.type = 'text'; input.className='form-control'; input.value = doc && doc[k] ? doc[k] : '';
+          input.name = k;
+          wrapper.appendChild(label); wrapper.appendChild(input);
+          appended = true;
         }
-        input.name = k;
-        wrapper.appendChild(label); wrapper.appendChild(input);
-        adminFormFields.appendChild(wrapper);
+        if (appended) adminFormFields.appendChild(wrapper);
       });
     }
 
@@ -369,6 +412,9 @@
           }
           payload[name] = val;
         });
+        // If modal provided both image (hidden, base64) and image_url, prefer base64; otherwise use image_url
+        if (payload.image === '' && payload.image_url){ payload.image = payload.image_url; }
+        if (payload.image_url) delete payload.image_url;
         const url = editingId ? '/admin/api/update' : '/admin/api/create';
         const bodyData = editingId ? {col: currentCol, id: editingId, doc: payload} : {col: currentCol, doc: payload};
         const resp = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrfToken}, body: JSON.stringify(bodyData)});
@@ -404,14 +450,23 @@
         // do not allow editing of _id
         if (k === '_id') continue;
         const val = (doc[k] === null || doc[k] === undefined) ? '' : doc[k];
-        let input = document.createElement('input');
-        input.type = (k === 'prix_horaire') ? 'number' : 'text';
-        if (k === 'prix_horaire') input.step = '0.01';
-        if (k === 'date') input.type = 'date';
-        input.className = 'form-control form-control-sm';
-        input.value = val;
-        td.innerHTML = '';
-        td.appendChild(input);
+        // special-case image: show URL input + preview
+        if (k === 'image'){
+          const urlInput = document.createElement('input'); urlInput.type='text'; urlInput.className='form-control form-control-sm mb-1'; urlInput.value = val; urlInput.name = 'image';
+          const preview = document.createElement('img'); preview.style.maxHeight='80px'; preview.className='img-fluid'; preview.src = val || '{{ url_for("static", filename="img/box-placeholder.svg") }}';
+          urlInput.addEventListener('input', (ev)=>{ preview.src = ev.target.value || '{{ url_for("static", filename="img/box-placeholder.svg") }}'; });
+          td.innerHTML = '';
+          td.appendChild(urlInput); td.appendChild(preview);
+        } else {
+          let input = document.createElement('input');
+          input.type = (k === 'prix_horaire') ? 'number' : 'text';
+          if (k === 'prix_horaire') input.step = '0.01';
+          if (k === 'date') input.type = 'date';
+          input.className = 'form-control form-control-sm';
+          input.value = val;
+          td.innerHTML = '';
+          td.appendChild(input);
+        }
       }
       // replace actions: find action td (last cell)
       const actionTd = tds[ keys.length ];

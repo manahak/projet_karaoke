@@ -52,6 +52,8 @@ def index():
             "status": b.get("status"),
             # 'nom' is the display name for a box; fall back to legacy 'type' or to 'Mixte'
             "nom": b.get("nom") or b.get("type") or 'Mixte',
+            # optional image field (can be URL or data URL)
+            "image": b.get("image") or None,
             "prix_horaire": b.get("prix_horaire")
         })
     return render_template("index.html", boxes=boxes, current_year=datetime.now().year, slots=SLOTS)
@@ -116,6 +118,7 @@ def confirm_reservation():
         'numero': box.get('numero'),
         'places': box.get('places'),
         'nom': box.get('nom') or box.get('type') or 'Mixte',
+        'image': box.get('image') or None,
         'prix_horaire': box.get('prix_horaire')
     })
 

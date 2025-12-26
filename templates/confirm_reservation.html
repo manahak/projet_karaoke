@@ -9,6 +9,9 @@
         <div class="card-body">
           <h4 class="card-title">Récapitulatif de votre réservation</h4>
           <p class="mb-1"><strong>Box :</strong> #{{ box.numero }} — {{ box.nom|default(box.type)|capitalize }}</p>
+          {% if box.image %}
+            <div class="mb-2"><img src="{{ box.image }}" alt="Box {{ box.numero }}" class="img-fluid" style="max-height:140px; object-fit:cover;"></div>
+          {% endif %}
           <p class="mb-1"><strong>Date :</strong> {{ pending.date }}</p>
           <p class="mb-1"><strong>Heure :</strong> {{ pending.heure_debut }} — {{ pending.heure_fin }}</p>
           <p class="mb-1"><strong>Prix :</strong> {{ box.prix_horaire }} €</p>

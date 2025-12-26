@@ -45,12 +45,16 @@
                                         </td>
                                         <td>{{ r.notes }}</td>
                                         <td>
-                                            <form method="POST" action="{{ url_for('reservation_cancel') }}" style="display:inline">
+                                            {% if r.status != 'annule' %}
+                                            <form method="POST" action="{{ url_for('reservation_cancel') }}" class="cancel-form" style="display:inline">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <input type="hidden" name="reservation_id" value="{{ r._id }}">
                                                 <button class="btn btn-sm btn-outline-danger" type="submit">Annuler</button>
                                             </form>
                                             <a class="btn btn-sm btn-outline-primary ms-2" href="{{ url_for('reservation_modify', res_id=r._id) }}">Modifier</a>
+                                            {% else %}
+                                            <span class="text-muted">Annulée</span>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -157,6 +161,24 @@
                                                     <h5 class="modal-title" id="passwordModalLabel">Modifier le mot de passe</h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
+                                                                <!-- Cancel confirmation modal -->
+                                                                <div class="modal fade" id="cancelConfirmModal" tabindex="-1" aria-labelledby="cancelConfirmLabel" aria-hidden="true">
+                                                                    <div class="modal-dialog modal-dialog-centered">
+                                                                        <div class="modal-content">
+                                                                            <div class="modal-header">
+                                                                                <h5 class="modal-title" id="cancelConfirmLabel">Confirmer l'annulation</h5>
+                                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                                                                            </div>
+                                                                            <div class="modal-body">
+                                                                                <p>Voulez-vous vraiment annuler cette réservation ? Cette action est irréversible.</p>
+                                                                            </div>
+                                                                            <div class="modal-footer">
+                                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                                                <button type="button" id="confirmCancelBtn" class="btn btn-danger">Confirmer l'annulation</button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                 <div class="modal-body">
                                                     <div class="mb-3">
                                                         <label for="current_password" class="form-label">Mot de passe actuel</label>
@@ -211,6 +233,26 @@ document.addEventListener('DOMContentLoaded', function(){
             }
         });
     }
+  
+        // cancel confirmation modal handling
+        let formToCancel = null;
+        const cancelModalEl = document.getElementById('cancelConfirmModal');
+        if (cancelModalEl){
+            const cancelModal = new bootstrap.Modal(cancelModalEl);
+            document.querySelectorAll('.cancel-form').forEach(f => {
+                f.addEventListener('submit', function(e){
+                    e.preventDefault();
+                    formToCancel = f;
+                    cancelModal.show();
+                });
+            });
+            const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+            if (confirmCancelBtn){
+                confirmCancelBtn.addEventListener('click', function(){
+                    if (formToCancel) formToCancel.submit();
+                });
+            }
+        }
 });
 </script>
 {% endblock %}

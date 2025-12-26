@@ -453,7 +453,24 @@ def admin():
     if user.get('role') != 'admin':
         # forbidden
         abort(403)
-    return render_template('admin.html')
+    # provide a small server-side sample of users for quick debug display
+    try:
+        sample_cursor = users.find().limit(10)
+        sample = []
+        for d in sample_cursor:
+            doc = {}
+            for k, v in d.items():
+                if k == '_id':
+                    doc[k] = str(v)
+                else:
+                    try:
+                        doc[k] = v
+                    except Exception:
+                        doc[k] = str(v)
+            sample.append(doc)
+    except Exception:
+        sample = []
+    return render_template('admin.html', server_docs=sample)
 
 
 def _admin_require():

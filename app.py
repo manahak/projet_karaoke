@@ -515,7 +515,7 @@ def admin_api_list():
     q = request.args.get('q')
     sort = request.args.get('sort')
     coll = _get_collection(col)
-    if not coll:
+    if coll is None:
         return jsonify({'error': 'invalid_collection'}), 400
     # build filter for simple search
     filt = {}
@@ -598,7 +598,7 @@ def admin_api_create():
     col = data.get('col')
     payload = data.get('doc')
     coll = _get_collection(col)
-    if not coll or not isinstance(payload, dict):
+    if coll is None or not isinstance(payload, dict):
         return jsonify({'error': 'invalid_request'}), 400
     # If creating user and password provided, hash it
     if col == 'users' and 'password' in payload and payload.get('password'):
@@ -626,7 +626,7 @@ def admin_api_update():
     if not col or not doc_id or not isinstance(updates, dict):
         return jsonify({'error': 'invalid_request'}), 400
     coll = _get_collection(col)
-    if not coll:
+    if coll is None:
         return jsonify({'error': 'invalid_collection'}), 400
     try:
         oid = ObjectId(doc_id)
@@ -673,7 +673,7 @@ def admin_api_delete():
     if not col or not doc_id:
         return jsonify({'error': 'invalid_request'}), 400
     coll = _get_collection(col)
-    if not coll:
+    if coll is None:
         return jsonify({'error': 'invalid_collection'}), 400
     try:
         oid = ObjectId(doc_id)

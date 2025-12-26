@@ -456,6 +456,201 @@ def admin():
     return render_template('admin.html')
 
 
+def _admin_require():
+    if 'user' not in session:
+        return False
+    return session.get('user', {}).get('role') == 'admin'
+
+
+def _get_collection(name):
+    # whitelist collections
+    if name == 'users':
+        return users
+    if name == 'box' or name == 'boxes':
+        return db.box
+    if name == 'reservation' or name == 'reservations':
+        return db.reservation
+    if name == 'admin_logs' or name == 'logs':
+        return db.admin_logs
+    return None
+
+
+def _log_admin_action(admin_user_id, action, col, doc_id=None, details=None):
+    try:
+        db.admin_logs.insert_one({
+            'admin_id': ObjectId(admin_user_id) if admin_user_id else None,
+            'action': action,
+            'collection': col,
+            'doc_id': str(doc_id) if doc_id else None,
+            'details': details,
+            'created_at': datetime.utcnow()
+        })
+    except Exception:
+        # logging must not break main flow
+        pass
+
+
+@app.route('/admin/api/list')
+def admin_api_list():
+    if not _admin_require():
+        return jsonify({'error': 'forbidden'}), 403
+    col = request.args.get('col')
+    q = request.args.get('q')
+    sort = request.args.get('sort')
+    coll = _get_collection(col)
+    if not coll:
+        return jsonify({'error': 'invalid_collection'}), 400
+    # build filter for simple search
+    filt = {}
+    if q:
+        # simple heuristics per collection
+        if col == 'users':
+            filt = {'$or': [{'username': {'$regex': q, '$options': 'i'}}, {'email': {'$regex': q, '$options': 'i'}}]}
+        elif col in ('box', 'boxes'):
+            filt = {'$or': [{'numero': {'$regex': q, '$options': 'i'}}, {'type': {'$regex': q, '$options': 'i'}}]}
+        elif col in ('reservation', 'reservations'):
+            filt = {'$or': [{'date': {'$regex': q, '$options': 'i'}}, {'notes': {'$regex': q, '$options': 'i'}}]}
+        elif col == 'admin_logs':
+            filt = {'$or': [{'action': {'$regex': q, '$options': 'i'}}, {'collection': {'$regex': q, '$options': 'i'}}]}
+
+    # prepare sort
+    sort_spec = None
+    if sort:
+        direction = -1 if sort.startswith('-') else 1
+        key = sort[1:] if sort.startswith('-') else sort
+        sort_spec = (key, direction)
+
+    docs = []
+    cursor = coll.find(filt)
+    if sort_spec:
+        try:
+            cursor = cursor.sort([sort_spec])
+        except Exception:
+            pass
+    for d in cursor:
+        doc = {}
+        for k, v in d.items():
+            if k == '_id':
+                doc[k] = str(v)
+            else:
+                try:
+                    doc[k] = v
+                except Exception:
+                    doc[k] = str(v)
+        docs.append(doc)
+    return jsonify({'docs': docs})
+
+
+@app.route('/admin/api/create', methods=['POST'])
+def admin_api_create():
+    if not _admin_require():
+        return jsonify({'error': 'forbidden'}), 403
+    data = request.get_json(force=True)
+    col = data.get('col')
+    payload = data.get('doc')
+    coll = _get_collection(col)
+    if not coll or not isinstance(payload, dict):
+        return jsonify({'error': 'invalid_request'}), 400
+    # If creating user and password provided, hash it
+    if col == 'users' and 'password' in payload and payload.get('password'):
+        payload['password'] = generate_password_hash(payload['password'])
+    # remove _id if present
+    payload.pop('_id', None)
+    res = coll.insert_one(payload)
+    # log admin action
+    try:
+        admin_id = session.get('user', {}).get('user_id')
+    except Exception:
+        admin_id = None
+    _log_admin_action(admin_id, 'create', col, str(res.inserted_id), payload)
+    return jsonify({'inserted_id': str(res.inserted_id)})
+
+
+@app.route('/admin/api/update', methods=['POST'])
+def admin_api_update():
+    if not _admin_require():
+        return jsonify({'error': 'forbidden'}), 403
+    data = request.get_json(force=True)
+    col = data.get('col')
+    doc_id = data.get('id')
+    updates = data.get('doc')
+    if not col or not doc_id or not isinstance(updates, dict):
+        return jsonify({'error': 'invalid_request'}), 400
+    coll = _get_collection(col)
+    if not coll:
+        return jsonify({'error': 'invalid_collection'}), 400
+    try:
+        oid = ObjectId(doc_id)
+    except Exception:
+        return jsonify({'error': 'invalid_id'}), 400
+    # special handling for users: prevent removing last admin, hash password if provided
+    if col == 'users':
+        # check role change: if demoting an admin, ensure at least one remains
+        try:
+            existing = coll.find_one({'_id': oid})
+            if existing:
+                old_role = existing.get('role')
+                new_role = updates.get('role', old_role)
+                if old_role == 'admin' and new_role != 'admin':
+                    admin_count = coll.count_documents({'role': 'admin'})
+                    # if this is the last admin, block the demotion
+                    if admin_count <= 1:
+                        return jsonify({'error': 'cannot_remove_last_admin'}), 400
+        except Exception:
+            pass
+        if 'password' in updates and updates.get('password'):
+            updates['password'] = generate_password_hash(updates['password'])
+
+    # do update
+    result = coll.update_one({'_id': oid}, {'$set': updates})
+    if result.matched_count == 0:
+        return jsonify({'error': 'not_found'}), 404
+    # log admin action
+    try:
+        admin_id = session.get('user', {}).get('user_id')
+    except Exception:
+        admin_id = None
+    _log_admin_action(admin_id, 'update', col, doc_id, updates)
+    return jsonify({'updated': True})
+
+
+@app.route('/admin/api/delete', methods=['POST'])
+def admin_api_delete():
+    if not _admin_require():
+        return jsonify({'error': 'forbidden'}), 403
+    data = request.get_json(force=True)
+    col = data.get('col')
+    doc_id = data.get('id')
+    if not col or not doc_id:
+        return jsonify({'error': 'invalid_request'}), 400
+    coll = _get_collection(col)
+    if not coll:
+        return jsonify({'error': 'invalid_collection'}), 400
+    try:
+        oid = ObjectId(doc_id)
+    except Exception:
+        return jsonify({'error': 'invalid_id'}), 400
+    # if deleting a user admin, ensure at least one admin remains
+    if col == 'users':
+        try:
+            doc = coll.find_one({'_id': oid})
+            if doc and doc.get('role') == 'admin':
+                admin_count = coll.count_documents({'role': 'admin'})
+                if admin_count <= 1:
+                    return jsonify({'error': 'cannot_delete_last_admin'}), 400
+        except Exception:
+            pass
+
+    res = coll.delete_one({'_id': oid})
+    # log admin action
+    try:
+        admin_id = session.get('user', {}).get('user_id')
+    except Exception:
+        admin_id = None
+    _log_admin_action(admin_id, 'delete', col, doc_id, None)
+    return jsonify({'deleted': res.deleted_count > 0})
+
+
 @app.route('/account_update', methods=['POST'])
 def account_update():
     # Update current user's profile per-field: action in {'username','email','password'}

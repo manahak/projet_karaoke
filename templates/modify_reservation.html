@@ -9,6 +9,7 @@
         <div class="card-body">
           <h4 class="card-title">Modifier la réservation - Box #{{ box.numero }}</h4>
           <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
               <label class="form-label">Date</label>
               <input type="date" name="date" id="date-input" class="form-control" value="{{ pending.date }}" required>

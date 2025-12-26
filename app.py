@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask_wtf import CSRFProtect
+from flask_wtf.csrf import generate_csrf
 from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
@@ -7,10 +9,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = "cle_secrete_change_moi"  # Nécessaire pour les sessions
 
+# CSRF protection
+csrf = CSRFProtect()
+csrf.init_app(app)
+
 
 @app.context_processor
 def inject_current_year():
-    return { 'current_year': datetime.now().year }
+    # expose current year and csrf token generator to templates
+    return { 'current_year': datetime.now().year, 'csrf_token': generate_csrf }
 
 # Connexion MongoDB
 client = MongoClient("mongodb://localhost:27017/")
@@ -150,7 +157,7 @@ def reservation_create():
         prev = (d - _td(days=1)).strftime("%Y-%m-%d")
         dates_to_check = [target_date_str, prev]
 
-        cursor = db.reservation.find({'box_id': box_oid, 'date': {'$in': dates_to_check}})
+        cursor = db.reservation.find({'box_id': box_oid, 'date': {'$in': dates_to_check}, 'status': {'$ne': 'annule'}})
         for r in cursor:
             if exclude_id and str(r.get('_id')) == str(exclude_id):
                 continue
@@ -303,8 +310,8 @@ def reservation_modify(res_id):
             target_end += _td(days=1)
 
         # overlap check similar to above
-        prev = ( _dt.strptime(date, "%Y-%m-%d").date() - _td(days=1) ).strftime("%Y-%m-%d")
-        cursor = db.reservation.find({'box_id': box_oid, 'date': {'$in': [date, prev]}})
+            prev = ( _dt.strptime(date, "%Y-%m-%d").date() - _td(days=1) ).strftime("%Y-%m-%d")
+            cursor = db.reservation.find({'box_id': box_oid, 'date': {'$in': [date, prev]}, 'status': {'$ne': 'annule'}})
         conflict = False
         for r in cursor:
             if str(r.get('_id')) == res_id:
@@ -353,7 +360,7 @@ def api_availability():
 
     reserved_indexes = []
     excluded = request.args.get('exclude_id')
-    cursor = db.reservation.find({'box_id': box_oid, 'date': date})
+    cursor = db.reservation.find({'box_id': box_oid, 'date': date, 'status': {'$ne': 'annule'}})
     for r in cursor:
         if excluded and str(r.get('_id')) == excluded:
             continue

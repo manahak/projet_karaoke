@@ -36,6 +36,7 @@
                                         <div class="card-footer bg-transparent">
                                             <form method="POST" action="{{ url_for('reserve_prepare') }}" id="form-{{ box._id }}">
                                                 <input type="hidden" name="box_id" value="{{ box._id }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <div class="mb-2">
                                                     <label class="form-label small">Date</label>
                                                     <input type="date" name="date" class="form-control form-control-sm" id="date-{{ box._id }}" required>

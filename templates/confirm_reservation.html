@@ -19,6 +19,7 @@
           {% if session.get('user') %}
             <p>Vous êtes connecté en tant que <strong>{{ session.get('user')['username'] }}</strong>. Confirmez pour finaliser la réservation.</p>
             <form method="POST" action="{{ url_for('reservation_create') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-success" type="submit">Confirmer la réservation</button>
               <a class="btn btn-secondary ms-2" href="{{ url_for('index') }}">Annuler</a>
             </form>

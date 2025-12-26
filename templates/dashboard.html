@@ -45,10 +45,11 @@
                                                                                 </td>
                                                                                 <td>{{ r.notes }}</td>
                                                                                 <td>
-                                                                                    <form method="POST" action="{{ url_for('reservation_cancel') }}" style="display:inline">
-                                                                                        <input type="hidden" name="reservation_id" value="{{ r._id }}">
-                                                                                        <button class="btn btn-sm btn-outline-danger" type="submit">Annuler</button>
-                                                                                    </form>
+                                                                                                                                <form method="POST" action="{{ url_for('reservation_cancel') }}" style="display:inline">
+                                                                                                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                                                                                    <input type="hidden" name="reservation_id" value="{{ r._id }}">
+                                                                                                                                    <button class="btn btn-sm btn-outline-danger" type="submit">Annuler</button>
+                                                                                                                                </form>
                                                                                     <a class="btn btn-sm btn-outline-primary ms-2" href="{{ url_for('reservation_modify', res_id=r._id) }}">Modifier</a>
                                                                                 </td>
                                                                         </tr>

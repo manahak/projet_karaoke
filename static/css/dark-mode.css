@@ -31,8 +31,8 @@ body { padding-top: 88px !important; }
 
 /* Cards and panels */
 .card, .modal-content, .dropdown-menu{
-  /* make card-level custom property authoritative to override upstream theme */
-  --bs-card-bg: var(--bs-card-bg) !important;
+  /* enforce a dark card background variable so upstream theme cannot reset it */
+  --bs-card-bg: #0f1720 !important;
   background-color: var(--bs-card-bg) !important;
   color: var(--bs-body-color) !important;
   border-color: var(--bs-border-color) !important;
@@ -54,11 +54,8 @@ body { padding-top: 88px !important; }
   color: var(--bs-body-color) !important;
 }
 
-/* Strongly override any rule that sets white backgrounds inside cards/tables */
-.card, .card * , .table, .table * , .table-responsive, .table-responsive * {
-  background-color: transparent !important;
-  color: inherit !important;
-}
+/* Avoid blanket transparent on all children — that broke badges and controls. */
+/* We keep card backgrounds dark but allow components like .badge, .btn, inputs to keep their own backgrounds. */
 
 /* Force common white/light backgrounds to dark variants */
 .bg-white, .bg-light, .card, .card-body, .jumbotron, .panel, .well, .hero {
@@ -73,6 +70,34 @@ body { padding-top: 88px !important; }
   color: var(--bs-body-color) !important;
   border-color: rgba(255,255,255,0.03) !important;
 }
+
+/* Badges (Disponibile / Reservé) keep their visible color */
+.badge.bg-success, .badge.bg-danger, .badge.bg-warning, .badge.bg-info {
+  color: #fff !important;
+}
+.badge.bg-success{ background-color: #28a745 !important; }
+.badge.bg-danger{ background-color: #dc3545 !important; }
+.badge.bg-warning{ background-color: #f59e0b !important; color:#000 !important; }
+.badge.bg-info{ background-color: #0dcaf0 !important; color:#000 !important; }
+
+/* Radios / checkboxes: increase contrast and use accent color */
+.form-check-input{
+  accent-color: var(--bs-btn-bg) !important;
+  background-color: transparent !important;
+  border: 2px solid rgba(255,255,255,0.18) !important;
+  width: 1.05rem; height: 1.05rem;
+}
+.form-check-label{ color: var(--bs-body-color) !important; }
+.form-check-input:focus{ box-shadow: 0 0 0 0.2rem rgba(125,211,201,0.12) !important; }
+
+/* Dropdown menus: solid dark background */
+.dropdown-menu{
+  background-color: var(--bs-card-bg) !important;
+  color: var(--bs-body-color) !important;
+  border: 1px solid var(--bs-border-color) !important;
+}
+.dropdown-item{ color: var(--bs-body-color) !important; }
+.dropdown-item:hover, .dropdown-item:focus{ background-color: rgba(255,255,255,0.03) !important; color: var(--bs-link-hover-color) !important; }
 
 /* Tables */
 .table{

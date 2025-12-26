@@ -173,6 +173,19 @@
           body.innerHTML = '<tr><td colspan="3"><pre style="white-space:pre-wrap;">'+escapeHtml(text)+'</pre></td></tr>';
           return;
         }
+        // Normalize ObjectId representations produced by bson.json_util (e.g. {"$oid":"..."}) to plain strings
+        if (data && Array.isArray(data.docs)){
+          data.docs.forEach(doc => {
+            ['_id','user_id','box_id'].forEach(k => {
+              if (doc[k] && typeof doc[k] === 'object'){
+                // ObjectId is serialized as {"$oid":"..."}
+                if (doc[k].$oid) doc[k] = doc[k].$oid;
+                // sometimes clients may send {$binary:...} or other patterns; fall back to toString
+                else doc[k] = String(doc[k]);
+              }
+            });
+          });
+        }
         if (data.error){ showAlert(data.error,'danger'); return; }
         const docs = data.docs || [];
         if (docs.length === 0){ head.innerHTML = '<tr><th>_id</th><th>Document</th><th>Actions</th></tr>'; body.innerHTML = '<tr><td colspan="3" class="text-muted">Aucun document</td></tr>'; return; }

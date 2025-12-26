@@ -68,11 +68,8 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
           </div>
           <div class="modal-body">
-            <p class="text-muted">Éditez le document JSON brut ci‑dessous. Pour les utilisateurs, si vous incluez une clé `password`, elle sera hachée automatiquement.</p>
-            <div class="mb-3">
-              <label class="form-label">Document JSON</label>
-              <textarea id="adminJson" class="form-control" rows="12"></textarea>
-            </div>
+            <p class="text-muted">Remplissez les champs ci‑dessous. L'ID est généré automatiquement pour les créations.</p>
+            <div id="adminFormFields" class="mb-3"></div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -137,9 +134,9 @@
     const body = document.getElementById('adminBody');
     const alertEl = document.getElementById('adminAlert');
     const editModalEl = document.getElementById('adminEditModal');
-    const editModal = new bootstrap.Modal(editModalEl);
-    const adminJson = document.getElementById('adminJson');
-    const adminEditForm = document.getElementById('adminEditForm');
+  const editModal = new bootstrap.Modal(editModalEl);
+  const adminFormFields = document.getElementById('adminFormFields');
+  const adminEditForm = document.getElementById('adminEditForm');
     let editingId = null;
   const adminSearch = document.getElementById('adminSearch');
   const adminSort = document.getElementById('adminSort');
@@ -274,7 +271,7 @@
           // Do not allow edit/delete for logs (read-only)
           if (currentCol !== 'admin_logs'){
             const btnEdit = document.createElement('button'); btnEdit.className='btn btn-sm btn-outline-primary me-2'; btnEdit.textContent='Modifier';
-            btnEdit.addEventListener('click', ()=> openEdit(d));
+            btnEdit.addEventListener('click', ()=> toggleRowEdit(tr, d, keys));
             const btnDel = document.createElement('button'); btnDel.className='btn btn-sm btn-outline-danger me-2'; btnDel.textContent='Supprimer';
             btnDel.addEventListener('click', ()=> delDoc(d._id));
             actions.appendChild(btnEdit); actions.appendChild(btnDel);
@@ -297,10 +294,42 @@
       }catch(err){ console.error(err); showAlert('Erreur lors du chargement','danger'); }
     }
 
+    // Build form fields for modal (create/edit)
+    function buildFormForModal(doc, col, isNew){
+      adminFormFields.innerHTML = '';
+      // decide keys to show similar to table header
+      let keys = [];
+      if (col === 'box') keys = ['numero','places','nom','prix_horaire'];
+      else if (col === 'reservation') keys = ['date','heure_debut','heure_fin','user_id','box_id','status','notes'];
+      else if (col === 'users') keys = ['username','email','role'];
+      else keys = Object.keys(doc || {});
+      // for creation do not include _id
+      keys.forEach(k => {
+        const wrapper = document.createElement('div'); wrapper.className = 'mb-2';
+        const label = document.createElement('label'); label.className = 'form-label'; label.textContent = headerLabels[k] || k;
+        let input;
+        if (k === 'role'){
+          input = document.createElement('select'); input.className = 'form-select';
+          ['client','admin'].forEach(opt => { const o = document.createElement('option'); o.value = opt; o.textContent = opt; input.appendChild(o); });
+          input.value = doc && doc[k] ? doc[k] : 'client';
+        } else if (k === 'prix_horaire'){
+          input = document.createElement('input'); input.type = 'number'; input.step = '0.01'; input.className='form-control'; input.value = doc && doc[k] ? doc[k] : '';
+        } else if (k === 'date'){
+          input = document.createElement('input'); input.type='date'; input.className='form-control'; input.value = doc && doc[k] ? doc[k] : '';
+        } else {
+          input = document.createElement('input'); input.type = 'text'; input.className='form-control'; input.value = doc && doc[k] ? doc[k] : '';
+        }
+        input.name = k;
+        wrapper.appendChild(label); wrapper.appendChild(input);
+        adminFormFields.appendChild(wrapper);
+      });
+    }
+
     function openEdit(doc){
+      // open modal with friendly fields instead of raw JSON
       editingId = doc._id;
       document.getElementById('adminEditTitle').textContent = 'Éditer ' + currentCol;
-      adminJson.value = JSON.stringify(doc, null, 2);
+      buildFormForModal(doc, currentCol, false);
       editModal.show();
     }
 
@@ -315,7 +344,7 @@
       resetModal.show();
     }
 
-    document.getElementById('adminResetForm').addEventListener('submit', async (e)=>{
+  document.getElementById('adminResetForm').addEventListener('submit', async (e)=>{
       e.preventDefault();
       const id = document.getElementById('resetUserId').value;
       const p = document.getElementById('resetPassword').value;
@@ -333,7 +362,7 @@
     document.getElementById('btnNew').addEventListener('click', ()=>{
       editingId = null;
       document.getElementById('adminEditTitle').textContent = 'Créer nouveau ' + currentCol;
-      adminJson.value = JSON.stringify({}, null, 2);
+      buildFormForModal({}, currentCol, true);
       editModal.show();
     });
 
@@ -353,13 +382,25 @@
     adminEditForm.addEventListener('submit', async (e)=>{
       e.preventDefault();
       try{
-        const payload = JSON.parse(adminJson.value);
+        // gather inputs from adminFormFields
+        const inputs = adminFormFields.querySelectorAll('input, select');
+        const payload = {};
+        inputs.forEach(inp => {
+          const name = inp.name;
+          if (!name) return;
+          let val = inp.value;
+          // attempt to coerce numeric
+          if (inp.type === 'number'){
+            if (val === '') val = null; else val = Number(val);
+          }
+          payload[name] = val;
+        });
         const url = editingId ? '/admin/api/update' : '/admin/api/create';
         const bodyData = editingId ? {col: currentCol, id: editingId, doc: payload} : {col: currentCol, doc: payload};
         const resp = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrfToken}, body: JSON.stringify(bodyData)});
         const data = await resp.json();
         if (data.error){ showAlert(data.error,'danger'); } else { showAlert('Opération réussie','success'); editModal.hide(); loadCollection(currentCol); }
-      }catch(err){ console.error(err); showAlert('JSON invalide','danger'); }
+      }catch(err){ console.error(err); showAlert('Erreur lors de l\'opération','danger'); }
     });
 
     async function delDoc(id){
@@ -369,6 +410,79 @@
         const data = await resp.json();
         if (data.error) showAlert(data.error,'danger'); else { showAlert('Document supprimé','success'); loadCollection(currentCol); }
       }catch(err){ console.error(err); showAlert('Erreur','danger'); }
+    }
+
+    // Inline row edit: toggle between view and edit mode for a given table row
+    function toggleRowEdit(tr, doc, keys){
+      if (tr.dataset.editing === '1'){
+        // already editing -> save
+        return saveRowEdit(tr, doc, keys);
+      }
+      tr.dataset.editing = '1';
+      // store original html to revert if needed
+      tr._origHtml = [];
+      const tds = Array.from(tr.children);
+      // keys columns are the first keys.length tds
+      for (let i=0;i<keys.length;i++){
+        const td = tds[i];
+        tr._origHtml.push(td.innerHTML);
+        const k = keys[i];
+        // do not allow editing of _id
+        if (k === '_id') continue;
+        const val = (doc[k] === null || doc[k] === undefined) ? '' : doc[k];
+        let input = document.createElement('input');
+        input.type = (k === 'prix_horaire') ? 'number' : 'text';
+        if (k === 'prix_horaire') input.step = '0.01';
+        if (k === 'date') input.type = 'date';
+        input.className = 'form-control form-control-sm';
+        input.value = val;
+        td.innerHTML = '';
+        td.appendChild(input);
+      }
+      // replace actions: find action td (last cell)
+      const actionTd = tds[ keys.length ];
+      actionTd._orig = actionTd.innerHTML;
+      actionTd.innerHTML = '';
+      const btnSave = document.createElement('button'); btnSave.className='btn btn-sm btn-primary me-2'; btnSave.textContent='Enregistrer';
+      const btnCancel = document.createElement('button'); btnCancel.className='btn btn-sm btn-secondary'; btnCancel.textContent='Annuler';
+      btnSave.addEventListener('click', ()=> saveRowEdit(tr, doc, keys));
+      btnCancel.addEventListener('click', ()=> revertRowEdit(tr));
+      actionTd.appendChild(btnSave); actionTd.appendChild(btnCancel);
+    }
+
+    async function saveRowEdit(tr, doc, keys){
+      const tds = Array.from(tr.children);
+      const payload = {};
+      for (let i=0;i<keys.length;i++){
+        const k = keys[i];
+        if (k === '_id') continue;
+        const td = tds[i];
+        const inp = td.querySelector('input, select');
+        if (!inp) continue;
+        let v = inp.value;
+        if (inp.type === 'number') v = v === '' ? null : Number(v);
+        payload[k] = v;
+      }
+      try{
+        const resp = await fetch('/admin/api/update', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrfToken}, body: JSON.stringify({col: currentCol, id: doc._id, doc: payload})});
+        const data = await resp.json();
+        if (data.error){ showAlert('Erreur: ' + data.error,'danger'); return; }
+        showAlert('Enregistré','success');
+        // refresh row by reloading collection
+        loadCollection(currentCol);
+      }catch(err){ console.error(err); showAlert('Erreur lors de l\'enregistrement','danger'); }
+    }
+
+    function revertRowEdit(tr){
+      if (!tr || !tr._origHtml) return;
+      const tds = Array.from(tr.children);
+      for (let i=0;i<tr._origHtml.length;i++){
+        tds[i].innerHTML = tr._origHtml[i];
+      }
+      // restore actions
+      const actionTd = tds[ tr._origHtml.length ];
+      if (actionTd && actionTd._orig) actionTd.innerHTML = actionTd._orig;
+      tr.dataset.editing = '0';
     }
 
     collectionButtons.forEach(b => b.addEventListener('click', ()=> loadCollection(b.dataset.col)));

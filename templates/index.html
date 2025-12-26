@@ -1,166 +1,172 @@
 {% extends "base.html" %}
 
-{% block title %}Accueil - Karaoke Box & Resto{% endblock %}
+{% block title %}Accueil - Karastar{% endblock %}
 
 {% block content %}
-    <div class="hero position-relative mb-4">
-        <img src="{{ url_for('static', filename='img/hero-placeholder.svg') }}" alt="Hero" class="w-100 d-block" style="height:320px; object-fit:cover;">
-        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
-            <div class="text-center text-white" style="z-index:2;">
-                <h1 class="display-5">Bienvenue chez Karastar</h1>
-                <p class="lead">Réservez une box karaoké ou commandez depuis notre menu — deux expériences, un seul lieu.</p>
-                <p>
-                    {% if not session.get('user') %}
-                        <a class="btn btn-primary" href="{{ url_for('login') }}">Me connecter</a>
-                    {% else %}
-                        <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Tableau de bord</a>
-                    {% endif %}
-                    {% if session.get('user') and session.get('user')['role'] == 'admin' %}
-                        <a class="btn btn-secondary ms-2" href="{{ url_for('admin') }}">Admin</a>
-                    {% endif %}
-                </p>
-            </div>
+<div class="hero position-relative mb-4">
+    <img src="{{ url_for('static', filename='img/hero.png') }}" alt="Hero" class="w-100 d-block"
+        style="height:320px; object-fit:cover;">
+    <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
+        <div class="text-center text-white" style="z-index:2;">
+            <h1 class="display-5">Bienvenue chez Karastar</h1>
+            <p class="lead">Réservez une box karaoké, puis commandez depuis notre menu — deux expériences, un seul lieu immersif.
+            </p>
+            <p>
+                {% if not session.get('user') %}
+                <a class="btn btn-primary" href="{{ url_for('login') }}">Me connecter</a>
+                {% else %}
+                <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Tableau de bord</a>
+                {% endif %}
+                {% if session.get('user') and session.get('user')['role'] == 'admin' %}
+                <a class="btn btn-secondary ms-2" href="{{ url_for('admin') }}">Admin</a>
+                {% endif %}
+            </p>
         </div>
     </div>
+</div>
 
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <h2>Nos spécialités</h2>
-            <p>Pizza, pâtes, salades fraîches et desserts maison.</p>
-        </div>
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <h2>Nos spécialités</h2>
+        <p>Pizza, pâtes, salades fraîches et desserts maison.</p>
     </div>
-  
-        <!-- Section : Réserver une box -->
-        <section class="mt-5">
-            <h2 class="mb-4">Réserver une box</h2>
-            <div class="row">
-                {% for box in boxes %}
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100">
-                                        <div class="card-body">
-                                                                                        <h5 class="card-title">Box #{{ box.numero }} — {{ box.nom|default(box.type)|capitalize }}</h5>
-                                                                                        {% if box.image %}
-                                                                                            <div class="mb-2"><img src="{{ box.image }}" alt="Box {{ box.numero }}" class="img-fluid" style="max-height:120px; object-fit:cover;"></div>
-                                                                                        {% else %}
-                                                                                            <div class="mb-2"><img src="{{ url_for('static', filename='img/box-placeholder.svg') }}" alt="Placeholder" class="img-fluid" style="max-height:120px; object-fit:cover;"></div>
-                                                                                        {% endif %}
-                                                                                        <p class="card-text">Places : {{ box.places }}<br>Prix : {{ box.prix_horaire }} €</p>
-                                            <p class="text-muted small">Sélectionnez une date puis choisissez un créneau de 2 heures.</p>
-                                        </div>
-                                        <div class="card-footer bg-transparent">
-                                            <form method="POST" action="{{ url_for('reserve_prepare') }}" id="form-{{ box._id }}">
-                                                <input type="hidden" name="box_id" value="{{ box._id }}">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                <div class="mb-2">
-                                                    <label class="form-label small">Date</label>
-                                                    <input type="date" name="date" class="form-control form-control-sm" id="date-{{ box._id }}" required>
-                                                </div>
-                                                <div id="slots-{{ box._id }}" class="mb-2">
-                                                    <!-- Slots rendered here by JS -->
-                                                </div>
-                                                <input type="hidden" name="slot_index" id="slot-{{ box._id }}">
-                                                <div class="mb-2">
-                                                    <label class="form-label small">Notes (optionnel)</label>
-                                                    <input class="form-control form-control-sm" type="text" name="notes" placeholder="Remarques, préférences...">
-                                                </div>
-                                                <div class="text-end">
-                                                    <button class="btn btn-primary btn-sm" type="submit">Choisir &amp; Confirmer</button>
-                                                </div>
-                                            </form>
-                                        </div>
+</div>
+
+<!-- Section : Réserver une box -->
+<section class="mt-5">
+    <h2 class="mb-4">Réserver une box</h2>
+    <div class="row">
+        {% for box in boxes %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Box #{{ box.numero }} — {{ box.nom|default(box.type)|capitalize }}</h5>
+                    {% if box.image %}
+                    <div class="mb-2"><img src="{{ box.image }}" alt="Box {{ box.numero }}" class="img-fluid"
+                            style="max-height:120px; object-fit:cover;"></div>
+                    {% else %}
+                    <div class="mb-2"><img src="{{ url_for('static', filename='img/box.png') }}"
+                            alt="Placeholder" class="img-fluid" style="max-height:120px; object-fit:cover;"></div>
+                    {% endif %}
+                    <p class="card-text">Places : {{ box.places }}<br>Prix : {{ box.prix_horaire }} €</p>
+                    <p class="text-muted small">Sélectionnez une date puis choisissez un créneau de 2 heures.</p>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <form method="POST" action="{{ url_for('reserve_prepare') }}" id="form-{{ box._id }}">
+                        <input type="hidden" name="box_id" value="{{ box._id }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-2">
+                            <label class="form-label small">Date</label>
+                            <input type="date" name="date" class="form-control form-control-sm" id="date-{{ box._id }}"
+                                required>
                         </div>
-                    </div>
-                {% endfor %}
+                        <div id="slots-{{ box._id }}" class="mb-2">
+                            <!-- Slots rendered here by JS -->
+                        </div>
+                        <input type="hidden" name="slot_index" id="slot-{{ box._id }}">
+                        <div class="mb-2">
+                            <label class="form-label small">Notes (optionnel)</label>
+                            <input class="form-control form-control-sm" type="text" name="notes"
+                                placeholder="Remarques, préférences...">
+                        </div>
+                        <div class="text-end">
+                            <button class="btn btn-primary btn-sm" type="submit">Choisir &amp; Confirmer</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </section>
+        </div>
+        {% endfor %}
+    </div>
+</section>
 {% endblock %}
 
 {% block scripts %}
-    <script>
-        // SLOTS provided by server
-        const SLOTS = {{ slots | tojson }};
-        // box ids array
-        const BOX_IDS = {{ boxes | map(attribute='_id') | list | tojson }};
+<script>
+    // SLOTS provided by server
+    const SLOTS = {{ slots | tojson }};
+    // box ids array
+    const BOX_IDS = {{ boxes | map(attribute = '_id') | list | tojson }};
 
-        function formatDateYYYYMMDD(d) {
-            const yyyy = d.getFullYear();
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            return `${yyyy}-${mm}-${dd}`;
+    function formatDateYYYYMMDD(d) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function getNextDates(n) {
+        const arr = [];
+        const today = new Date();
+        for (let i = 0; i < n; i++) {
+            const d = new Date(today);
+            d.setDate(today.getDate() + i);
+            arr.push(d);
         }
+        return arr;
+    }
 
-        function getNextDates(n) {
-            const arr = [];
-            const today = new Date();
-            for (let i = 0; i < n; i++) {
-                const d = new Date(today);
-                d.setDate(today.getDate() + i);
-                arr.push(d);
-            }
-            return arr;
+    // populate date selects and attach onchange
+    function initDateSelects() {
+        const dates = getNextDates(14);
+        const today = dates[0];
+        const maxDate = dates[dates.length - 1];
+        const minStr = formatDateYYYYMMDD(today);
+        const maxStr = formatDateYYYYMMDD(maxDate);
+
+        BOX_IDS.forEach(boxId => {
+            const inp = document.getElementById('date-' + boxId);
+            if (!inp) return;
+            inp.min = minStr;
+            inp.max = maxStr;
+            inp.value = minStr;
+            // load slots for initial selected date
+            inp.addEventListener('change', () => loadSlots(boxId, inp.value));
+            loadSlots(boxId, inp.value);
+        });
+    }
+
+    async function loadSlots(boxId, date) {
+        const container = document.getElementById('slots-' + boxId);
+        const hidden = document.getElementById('slot-' + boxId);
+        hidden.value = '';
+        container.innerHTML = '<div class="text-muted small">Chargement des créneaux…</div>';
+        try {
+            const resp = await fetch(`/api/availability?box_id=${boxId}&date=${date}`);
+            const data = await resp.json();
+            const reserved = new Set(data.reserved || []);
+            // render slots
+            container.innerHTML = '';
+            SLOTS.forEach((slot, idx) => {
+                const start = slot[0];
+                const end = slot[1];
+                const id = `slot-${boxId}-${idx}`;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'form-check';
+                const input = document.createElement('input');
+                input.className = 'form-check-input';
+                input.type = 'radio';
+                input.name = 'slot_radios_' + boxId;
+                input.id = id;
+                input.value = idx;
+                if (reserved.has(idx)) {
+                    input.disabled = true;
+                }
+                input.addEventListener('change', () => { hidden.value = idx; });
+                const label = document.createElement('label');
+                label.className = 'form-check-label';
+                label.htmlFor = id;
+                label.innerHTML = `${start} — ${end} ` + (reserved.has(idx) ? '<span class="badge bg-danger ms-2">Réservé</span>' : '<span class="badge bg-success ms-2">Disponible</span>');
+                wrapper.appendChild(input);
+                wrapper.appendChild(label);
+                container.appendChild(wrapper);
+            });
+        } catch (err) {
+            container.innerHTML = '<div class="text-danger small">Impossible de charger la disponibilité.</div>';
+            console.error(err);
         }
+    }
 
-        // populate date selects and attach onchange
-        function initDateSelects() {
-                const dates = getNextDates(14);
-                const today = dates[0];
-                const maxDate = dates[dates.length-1];
-                const minStr = formatDateYYYYMMDD(today);
-                const maxStr = formatDateYYYYMMDD(maxDate);
-
-                BOX_IDS.forEach(boxId => {
-                    const inp = document.getElementById('date-' + boxId);
-                    if (!inp) return;
-                    inp.min = minStr;
-                    inp.max = maxStr;
-                    inp.value = minStr;
-                    // load slots for initial selected date
-                    inp.addEventListener('change', () => loadSlots(boxId, inp.value));
-                    loadSlots(boxId, inp.value);
-                });
-            }
-
-        async function loadSlots(boxId, date) {
-            const container = document.getElementById('slots-' + boxId);
-            const hidden = document.getElementById('slot-' + boxId);
-            hidden.value = '';
-            container.innerHTML = '<div class="text-muted small">Chargement des créneaux…</div>';
-            try {
-                const resp = await fetch(`/api/availability?box_id=${boxId}&date=${date}`);
-                const data = await resp.json();
-                const reserved = new Set(data.reserved || []);
-                // render slots
-                container.innerHTML = '';
-                SLOTS.forEach((slot, idx) => {
-                    const start = slot[0];
-                    const end = slot[1];
-                    const id = `slot-${boxId}-${idx}`;
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'form-check';
-                    const input = document.createElement('input');
-                    input.className = 'form-check-input';
-                    input.type = 'radio';
-                    input.name = 'slot_radios_' + boxId;
-                    input.id = id;
-                    input.value = idx;
-                    if (reserved.has(idx)) {
-                        input.disabled = true;
-                    }
-                    input.addEventListener('change', () => { hidden.value = idx; });
-                    const label = document.createElement('label');
-                    label.className = 'form-check-label';
-                    label.htmlFor = id;
-                    label.innerHTML = `${start} — ${end} ` + (reserved.has(idx) ? '<span class="badge bg-danger ms-2">Réservé</span>' : '<span class="badge bg-success ms-2">Disponible</span>');
-                    wrapper.appendChild(input);
-                    wrapper.appendChild(label);
-                    container.appendChild(wrapper);
-                });
-            } catch (err) {
-                container.innerHTML = '<div class="text-danger small">Impossible de charger la disponibilité.</div>';
-                console.error(err);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => initDateSelects());
-    </script>
+    document.addEventListener('DOMContentLoaded', () => initDateSelects());
+</script>
 {% endblock %}

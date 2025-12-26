@@ -83,6 +83,37 @@
     </div>
   </div>
 
+  <!-- Reset Password Modal -->
+  <div class="modal fade" id="adminResetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content">
+        <form id="adminResetForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" id="resetUserId" name="user_id" value="">
+          <div class="modal-header">
+            <h5 class="modal-title">Réinitialiser le mot de passe</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-2">
+              <label class="form-label">Nouveau mot de passe</label>
+              <input id="resetPassword" type="password" class="form-control" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Confirmer</label>
+              <input id="resetPasswordConfirm" type="password" class="form-control" required>
+            </div>
+            <p class="small text-muted">Le mot de passe sera haché côté serveur.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-danger">Réinitialiser</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <script>
   // Small styles for shortened id cells
   const style = document.createElement('style');
@@ -98,7 +129,7 @@
   const headerLabels = {
     '_id':'ID', 'numero':'Numéro', 'places':'Places', 'type':'Type', 'prix_horaire':'Prix /h', 'status':'Statut',
     'date':'Date', 'heure_debut':'Heure début', 'heure_fin':'Heure fin', 'user_id':'Client ID', 'box_id':'Box ID',
-    'client_name':'Client', 'box_numero':'Box', 'username':'Nom', 'email':'Email', 'created_at':'Créé', 'updated_at':'Modifié', 'notes':'Notes'
+    'client_name':'Client', 'box_numero':'Box', 'username':'Nom', 'email':'Email', 'password':'Mot de passe', 'created_at':'Créé', 'updated_at':'Modifié', 'notes':'Notes'
   };
   const collectionButtons = document.querySelectorAll('#adminCollections [data-col]');
     let currentCol = 'users';
@@ -153,6 +184,9 @@
         } else if (col === 'reservation' || currentCol === 'reservation'){
           // show readable reservation columns and use enriched client/box fields
           keys = ['_id','date','heure_debut','heure_fin','client_name','box_numero','status','notes'];
+        } else if (col === 'users' || currentCol === 'users'){
+          // for users, hide the password hash column and show common user fields
+          keys = ['_id','username','email','role','created_at','updated_at'];
         } else {
           keys = Object.keys(docs[0]);
         }
@@ -163,8 +197,8 @@
           keys.forEach(k => {
             const td = document.createElement('td');
             const val = (d[k] === null || d[k] === undefined) ? '' : d[k];
-            // shorten id-like fields and make them copyable
-            if ((k === '_id' || k === 'user_id' || k === 'box_id') && val){
+            // shorten id-like fields and make them copyable; include password as sensitive but copyable (hash)
+            if ((k === '_id' || k === 'user_id' || k === 'box_id' || k === 'password') && val){
               const full = (typeof val === 'object') ? JSON.stringify(val) : String(val);
               const short = full.length > 12 ? (full.slice(0,8) + '...') : full;
               const span = document.createElement('span');
@@ -173,15 +207,20 @@
               span.setAttribute('data-full-id', full);
               span.setAttribute('data-bs-toggle','tooltip');
               span.setAttribute('data-bs-placement','top');
-              span.title = 'Cliquer pour copier l\'ID complet';
+              // different tooltip/title depending on field
+              if (k === 'password'){
+                span.title = 'Cliquer pour copier le hash du mot de passe';
+              } else {
+                span.title = 'Cliquer pour copier l\'ID complet';
+              }
               span.addEventListener('click', async (ev)=>{
                 const toCopy = ev.currentTarget.getAttribute('data-full-id');
                 try{
                   await navigator.clipboard.writeText(toCopy);
-                  showAlert('ID copié dans le presse-papiers','success');
+                  if (k === 'password') showAlert('Hash du mot de passe copié','success'); else showAlert('ID copié dans le presse-papiers','success');
                 }catch(e){
                   // fallback
-                  const ta = document.createElement('textarea'); ta.value = toCopy; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); showAlert('ID copié','success'); }catch(err){ showAlert('Impossible de copier automatiquement','warning'); } ta.remove();
+                  const ta = document.createElement('textarea'); ta.value = toCopy; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); if (k === 'password') showAlert('Hash copié','success'); else showAlert('ID copié','success'); }catch(err){ showAlert('Impossible de copier automatiquement','warning'); } ta.remove();
                 }
               });
               td.appendChild(span);
@@ -195,9 +234,15 @@
           if (currentCol !== 'admin_logs'){
             const btnEdit = document.createElement('button'); btnEdit.className='btn btn-sm btn-outline-primary me-2'; btnEdit.textContent='Modifier';
             btnEdit.addEventListener('click', ()=> openEdit(d));
-            const btnDel = document.createElement('button'); btnDel.className='btn btn-sm btn-outline-danger'; btnDel.textContent='Supprimer';
+            const btnDel = document.createElement('button'); btnDel.className='btn btn-sm btn-outline-danger me-2'; btnDel.textContent='Supprimer';
             btnDel.addEventListener('click', ()=> delDoc(d._id));
             actions.appendChild(btnEdit); actions.appendChild(btnDel);
+            // For users, add Reset Password button
+            if (currentCol === 'users'){
+              const btnReset = document.createElement('button'); btnReset.className='btn btn-sm btn-outline-warning'; btnReset.textContent='Réinitialiser MDp';
+              btnReset.addEventListener('click', ()=> openResetPassword(d._id, d.username));
+              actions.appendChild(btnReset);
+            }
           } else {
             actions.textContent = 'Lecture seule';
           }
@@ -217,6 +262,31 @@
       adminJson.value = JSON.stringify(doc, null, 2);
       editModal.show();
     }
+
+    // Reset password flow
+    const resetModalEl = document.getElementById('adminResetModal');
+    const resetModal = new bootstrap.Modal(resetModalEl);
+    function openResetPassword(id, username){
+      document.getElementById('resetUserId').value = id;
+      document.getElementById('resetPassword').value = '';
+      document.getElementById('resetPasswordConfirm').value = '';
+      document.querySelector('#adminResetModal .modal-title').textContent = `Réinitialiser le mot de passe de ${username || ''}`;
+      resetModal.show();
+    }
+
+    document.getElementById('adminResetForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const id = document.getElementById('resetUserId').value;
+      const p = document.getElementById('resetPassword').value;
+      const pc = document.getElementById('resetPasswordConfirm').value;
+      if (!p || p !== pc){ showAlert('Les mots de passe ne correspondent pas','danger'); return; }
+      try{
+        const bodyData = {col: 'users', id: id, doc: {password: p}};
+        const resp = await fetch('/admin/api/update', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrfToken}, body: JSON.stringify(bodyData)});
+        const data = await resp.json();
+        if (data.error){ showAlert(data.error,'danger'); } else { showAlert('Mot de passe réinitialisé','success'); resetModal.hide(); loadCollection(currentCol); }
+      }catch(err){ console.error(err); showAlert('Erreur lors de la réinitialisation','danger'); }
+    });
 
     const btnNew = document.getElementById('btnNew');
     document.getElementById('btnNew').addEventListener('click', ()=>{

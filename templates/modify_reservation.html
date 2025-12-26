@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier réservation - Karaoke Box & Resto{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center mt-4">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-body">
+          <h4 class="card-title">Modifier la réservation - Box #{{ box.numero }}</h4>
+          <form method="POST">
+            <div class="mb-3">
+              <label class="form-label">Date</label>
+              <input type="date" name="date" id="date-input" class="form-control" value="{{ pending.date }}" required>
+            </div>
+            <div id="slots-container" class="mb-3">
+              <!-- slots populated by JS -->
+            </div>
+            <input type="hidden" name="slot_index" id="slot-index-input" value="{{ pending.slot_index }}">
+            <div class="mb-3">
+              <label class="form-label">Notes</label>
+              <input type="text" name="notes" class="form-control" value="{{ pending.notes }}">
+            </div>
+            <button class="btn btn-primary" type="submit">Enregistrer les modifications</button>
+            <a class="btn btn-secondary ms-2" href="{{ url_for('dashboard') }}">Annuler</a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const SLOTS = {{ slots | tojson }};
+  const reservationSlot = {{ pending.slot_index | tojson }};
+  const resId = "{{ reservation._id }}";
+  function loadModifySlots(date) {
+    const container = document.getElementById('slots-container');
+    const hidden = document.getElementById('slot-index-input');
+    container.innerHTML = '<div class="text-muted small">Chargement...</div>';
+    fetch(`/api/availability?box_id={{ pending.box_id }}&date=${date}&exclude_id=${resId}`)
+      .then(r => r.json())
+      .then(data => {
+        const reserved = new Set(data.reserved || []);
+        container.innerHTML = '';
+        SLOTS.forEach((slot, idx) => {
+          const start = slot[0];
+          const end = slot[1];
+          const id = `mod-slot-${idx}`;
+          const wrapper = document.createElement('div');
+          wrapper.className = 'form-check';
+          const input = document.createElement('input');
+          input.className = 'form-check-input';
+          input.type = 'radio';
+          input.name = 'slot_radios';
+          input.id = id;
+          input.value = idx;
+          if (reserved.has(idx)) input.disabled = true;
+          if (idx == reservationSlot) {
+            input.checked = true; hidden.value = idx;
+          }
+          input.addEventListener('change', () => { hidden.value = idx; });
+          const label = document.createElement('label');
+          label.className = 'form-check-label';
+          label.htmlFor = id;
+          label.innerHTML = `${start} — ${end} ` + (reserved.has(idx) ? '<span class="badge bg-danger ms-2">Réservé</span>' : '<span class="badge bg-success ms-2">Disponible</span>');
+          wrapper.appendChild(input);
+          wrapper.appendChild(label);
+          container.appendChild(wrapper);
+        });
+      })
+      .catch(err => { container.innerHTML = '<div class="text-danger small">Impossible de charger.</div>'; console.error(err); });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const dateInput = document.getElementById('date-input');
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    const min = `${yyyy}-${mm}-${dd}`;
+    const maxDate = new Date(); maxDate.setDate(today.getDate()+13);
+    const my = `${maxDate.getFullYear()}-${String(maxDate.getMonth()+1).padStart(2,'0')}-${String(maxDate.getDate()).padStart(2,'0')}`;
+    dateInput.min = min; dateInput.max = my;
+    loadModifySlots(dateInput.value);
+    dateInput.addEventListener('change', () => loadModifySlots(dateInput.value));
+  });
+</script>
+{% endblock %}

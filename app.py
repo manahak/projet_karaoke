@@ -129,12 +129,44 @@ def reservation_create():
     except Exception:
         return redirect(url_for('index'))
 
-    # Check slot availability again for the given date
-    existing = db.reservation.find_one({'box_id': box_oid, 'date': pending['date'], 'heure_debut': pending['heure_debut']})
-    if existing:
-        # Slot already taken
+    # Check slot availability again for the given date using overlap detection
+    def parse_dt(date_str, time_str):
+        # returns a datetime (date+time) for start; if time crosses midnight, we'll handle end separately
+        parts = [int(p) for p in time_str.split(":")]
+        from datetime import datetime as _dt, date as _date, time as _time
+        d = _dt.strptime(date_str, "%Y-%m-%d").date()
+        return _dt.combine(d, _time(parts[0], parts[1]))
+
+    def overlaps(box_oid, target_date_str, start_str, end_str, exclude_id=None):
+        from datetime import datetime as _dt, timedelta as _td
+        target_start = parse_dt(target_date_str, start_str)
+        target_end = parse_dt(target_date_str, end_str)
+        if target_end <= target_start:
+            target_end += _td(days=1)
+
+        # check reservations on target_date and the previous date (to catch over-midnight overlaps)
+        from datetime import datetime as _dt2
+        d = _dt2.strptime(target_date_str, "%Y-%m-%d").date()
+        prev = (d - _td(days=1)).strftime("%Y-%m-%d")
+        dates_to_check = [target_date_str, prev]
+
+        cursor = db.reservation.find({'box_id': box_oid, 'date': {'$in': dates_to_check}})
+        for r in cursor:
+            if exclude_id and str(r.get('_id')) == str(exclude_id):
+                continue
+            r_start = parse_dt(r.get('date'), r.get('heure_debut'))
+            r_end = parse_dt(r.get('date'), r.get('heure_fin'))
+            if r_end <= r_start:
+                r_end += _td(days=1)
+            # intervals overlap?
+            if not (target_end <= r_start or target_start >= r_end):
+                return True
+        return False
+
+    if overlaps(box_oid, pending['date'], pending['heure_debut'], pending['heure_fin']):
+        # Slot overlaps an existing reservation
         session.pop('pending_reservation', None)
-        flash('Le créneau sélectionné a été réservé au préalable. Veuillez choisir un autre créneau.', 'error')
+        flash('Le créneau sélectionné est en conflit avec une réservation existante. Veuillez choisir un autre créneau.', 'error')
         return redirect(url_for('index'))
 
     reservation_doc = {
@@ -190,6 +222,122 @@ def dashboard():
     return redirect(url_for('login'))
 
 
+@app.route('/reservation_cancel', methods=['POST'])
+def reservation_cancel():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    res_id = request.form.get('reservation_id')
+    if not res_id:
+        return redirect(url_for('dashboard'))
+    try:
+        oid = ObjectId(res_id)
+    except Exception:
+        return redirect(url_for('dashboard'))
+
+    res = db.reservation.find_one({'_id': oid})
+    if not res:
+        flash('Réservation introuvable.', 'error')
+        return redirect(url_for('dashboard'))
+
+    # allow cancel only by owner or admin
+    user = session.get('user')
+    if user.get('role') != 'admin' and str(res.get('user_id')) != user.get('user_id'):
+        flash('Vous n\'êtes pas autorisé à annuler cette réservation.', 'error')
+        return redirect(url_for('dashboard'))
+
+    db.reservation.update_one({'_id': oid}, {'$set': {'status': 'annule', 'cancelled_at': datetime.utcnow()}})
+    flash('Réservation annulée.', 'success')
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/reservation_modify/<res_id>', methods=['GET', 'POST'])
+def reservation_modify(res_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        oid = ObjectId(res_id)
+    except Exception:
+        return redirect(url_for('dashboard'))
+
+    res = db.reservation.find_one({'_id': oid})
+    if not res:
+        flash('Réservation introuvable.', 'error')
+        return redirect(url_for('dashboard'))
+
+    user = session.get('user')
+    if user.get('role') != 'admin' and str(res.get('user_id')) != user.get('user_id'):
+        flash('Vous n\'êtes pas autorisé à modifier cette réservation.', 'error')
+        return redirect(url_for('dashboard'))
+
+    box_oid = res.get('box_id')
+    box = db.box.find_one({'_id': box_oid})
+    if request.method == 'POST':
+        # process modification
+        date = request.form.get('date')
+        slot_index = request.form.get('slot_index')
+        notes = request.form.get('notes')
+        if not date or slot_index is None:
+            flash('Données invalides.', 'error')
+            return redirect(url_for('reservation_modify', res_id=res_id))
+        try:
+            slot_index = int(slot_index)
+            if slot_index < 0 or slot_index >= len(SLOTS):
+                raise ValueError()
+        except Exception:
+            flash('Créneau invalide.', 'error')
+            return redirect(url_for('reservation_modify', res_id=res_id))
+
+        start, end = SLOTS[slot_index]
+        # check overlap excluding current reservation
+        def parse_dt(date_str, time_str):
+            parts = [int(p) for p in time_str.split(":")]
+            from datetime import datetime as _dt, date as _date, time as _time
+            d = _dt.strptime(date_str, "%Y-%m-%d").date()
+            return _dt.combine(d, _time(parts[0], parts[1]))
+
+        from datetime import datetime as _dt, timedelta as _td
+        target_start = parse_dt(date, start)
+        target_end = parse_dt(date, end)
+        if target_end <= target_start:
+            target_end += _td(days=1)
+
+        # overlap check similar to above
+        prev = ( _dt.strptime(date, "%Y-%m-%d").date() - _td(days=1) ).strftime("%Y-%m-%d")
+        cursor = db.reservation.find({'box_id': box_oid, 'date': {'$in': [date, prev]}})
+        conflict = False
+        for r in cursor:
+            if str(r.get('_id')) == res_id:
+                continue
+            r_start = parse_dt(r.get('date'), r.get('heure_debut'))
+            r_end = parse_dt(r.get('date'), r.get('heure_fin'))
+            if r_end <= r_start:
+                r_end += _td(days=1)
+            if not (target_end <= r_start or target_start >= r_end):
+                conflict = True
+                break
+
+        if conflict:
+            flash('Le créneau choisi est en conflit avec une réservation existante.', 'error')
+            return redirect(url_for('reservation_modify', res_id=res_id))
+
+        # update reservation
+        db.reservation.update_one({'_id': oid}, {'$set': {'date': date, 'heure_debut': start, 'heure_fin': end, 'notes': notes}})
+        flash('Réservation modifiée.', 'success')
+        return redirect(url_for('dashboard'))
+
+    # GET -> render modify page
+    pending = {
+        'box_id': str(box.get('_id')),
+        'date': res.get('date'),
+        'heure_debut': res.get('heure_debut'),
+        'heure_fin': res.get('heure_fin'),
+        'slot_index': next((i for i,(s,e) in enumerate(SLOTS) if s==res.get('heure_debut')), None),
+        'notes': res.get('notes','')
+    }
+    return render_template('modify_reservation.html', reservation=res, box={'numero': box.get('numero'), 'prix_horaire': box.get('prix_horaire')}, pending=pending, slots=SLOTS)
+
+
 @app.route('/api/availability')
 def api_availability():
     # Returns list of reserved slot indexes for a given box and date
@@ -204,8 +352,11 @@ def api_availability():
         return jsonify({'error': 'invalid box_id'}), 400
 
     reserved_indexes = []
+    excluded = request.args.get('exclude_id')
     cursor = db.reservation.find({'box_id': box_oid, 'date': date})
     for r in cursor:
+        if excluded and str(r.get('_id')) == excluded:
+            continue
         hd = r.get('heure_debut')
         # find matching slot index
         for idx, (sstart, send) in enumerate(SLOTS):

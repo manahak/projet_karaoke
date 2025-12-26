@@ -38,7 +38,7 @@
                                                 <input type="hidden" name="box_id" value="{{ box._id }}">
                                                 <div class="mb-2">
                                                     <label class="form-label small">Date</label>
-                                                    <select name="date" class="form-select form-select-sm" id="date-{{ box._id }}" required></select>
+                                                    <input type="date" name="date" class="form-control form-control-sm" id="date-{{ box._id }}" required>
                                                 </div>
                                                 <div id="slots-{{ box._id }}" class="mb-2">
                                                     <!-- Slots rendered here by JS -->
@@ -87,22 +87,23 @@
 
         // populate date selects and attach onchange
         function initDateSelects() {
-            const dates = getNextDates(14);
-            BOX_IDS.forEach(boxId => {
-                const sel = document.getElementById('date-' + boxId);
-                if (!sel) return;
-                sel.innerHTML = '';
-                dates.forEach(d => {
-                    const opt = document.createElement('option');
-                    opt.value = formatDateYYYYMMDD(d);
-                    opt.textContent = d.toLocaleDateString();
-                    sel.appendChild(opt);
+                const dates = getNextDates(14);
+                const today = dates[0];
+                const maxDate = dates[dates.length-1];
+                const minStr = formatDateYYYYMMDD(today);
+                const maxStr = formatDateYYYYMMDD(maxDate);
+
+                BOX_IDS.forEach(boxId => {
+                    const inp = document.getElementById('date-' + boxId);
+                    if (!inp) return;
+                    inp.min = minStr;
+                    inp.max = maxStr;
+                    inp.value = minStr;
+                    // load slots for initial selected date
+                    inp.addEventListener('change', () => loadSlots(boxId, inp.value));
+                    loadSlots(boxId, inp.value);
                 });
-                // load slots for initial selected date
-                sel.addEventListener('change', () => loadSlots(boxId, sel.value));
-                loadSlots(boxId, sel.value);
-            });
-        }
+            }
 
         async function loadSlots(boxId, date) {
             const container = document.getElementById('slots-' + boxId);

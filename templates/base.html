@@ -16,6 +16,8 @@
     body {
       background: linear-gradient(180deg, #e7ecf0 0%, #c8d3ca 100%) !important;
       min-height: 100vh;
+      /* reserve space for fixed navbar so header is always visible and doesn't cover content */
+      padding-top: 72px;
     }
     /* ensure sections with transparent backgrounds show the gradient */
     .masthead, .about-section, .projects-section, .signup-section, .contact-section {
@@ -38,7 +40,7 @@
             </li>
             {% if not session.get('user') %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('login') }}">Mon compte</a>
+              <a class="nav-link" href="{{ url_for('login') }}">Me connecter</a>
             </li>
             {% endif %}
             {% if session.get('user') %}
@@ -47,7 +49,10 @@
                 {{ session.get('user')['username'] }}
               </a>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                <li><a class="dropdown-item" href="{{ url_for('dashboard') }}">Tableau de bord</a></li>
+                  <li><a class="dropdown-item" href="{{ url_for('dashboard') }}">Tableau de bord</a></li>
+                  {% if session.get('user') and session.get('user')['role'] == 'admin' %}
+                  <li><a class="dropdown-item" href="{{ url_for('admin') }}">Admin</a></li>
+                  {% endif %}
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="{{ url_for('logout') }}">Se déconnecter</a></li>
               </ul>

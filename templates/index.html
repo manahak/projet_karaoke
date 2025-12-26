@@ -6,12 +6,16 @@
     <div class="py-5 text-center">
         <h1 class="display-5">Bienvenue chez Karaoke Box & Resto</h1>
         <p class="lead">Réservez une box karaoké ou commandez depuis notre menu — deux expériences, un seul lieu.</p>
-        <p>
-            <a class="btn btn-primary" href="{{ url_for('login') }}">Mon compte</a>
-            {% if session.get('user') %}
-                <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Tableau de bord</a>
-            {% endif %}
-        </p>
+                <p>
+                        {% if not session.get('user') %}
+                            <a class="btn btn-primary" href="{{ url_for('login') }}">Me connecter</a>
+                        {% else %}
+                            <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Tableau de bord</a>
+                        {% endif %}
+                        {% if session.get('user') and session.get('user')['role'] == 'admin' %}
+                            <a class="btn btn-outline-dark ms-2" href="{{ url_for('admin') }}">Admin</a>
+                        {% endif %}
+                </p>
     </div>
 
     <div class="row">

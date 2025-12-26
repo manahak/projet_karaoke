@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
 from pymongo import MongoClient
@@ -442,6 +442,18 @@ def login():
 def logout():
     session.pop("user", None)
     return redirect(url_for("index"))
+
+
+@app.route('/admin')
+def admin():
+    # Admin placeholder page — only for admin users
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    user = session.get('user')
+    if user.get('role') != 'admin':
+        # forbidden
+        abort(403)
+    return render_template('admin.html')
 
 
 @app.route('/account_update', methods=['POST'])

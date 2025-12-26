@@ -16,7 +16,8 @@ body{
 }
 
 /* Reserve space for fixed navbar so it doesn't overlap content */
-body { padding-top: 72px !important; }
+/* increased padding to cover larger navbar heights */
+body { padding-top: 88px !important; }
 
 /* Navbar */
 .navbar{
@@ -34,6 +35,19 @@ body { padding-top: 72px !important; }
   color: var(--bs-body-color) !important;
   border-color: var(--bs-border-color) !important;
   box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+}
+
+/* Strong overrides to neutralize any remaining white backgrounds from theme */
+.bg-white, .bg-light, .card, .card-body, .card .card-body, .card-header, .card-footer, .jumbotron, .panel, .well, .hero, .section, .container, .container-fluid {
+  background-color: var(--bs-card-bg) !important;
+  color: var(--bs-body-color) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+/* Ensure form areas, panels and responsive wrappers are dark */
+.table-responsive, .table-responsive > .table, .form-group, .form-row, .form-control, .input-group, .card .list-group-item {
+  background-color: transparent !important;
+  color: var(--bs-body-color) !important;
 }
 
 /* Force common white/light backgrounds to dark variants */

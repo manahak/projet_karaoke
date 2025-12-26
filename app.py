@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
@@ -17,6 +17,17 @@ client = MongoClient("mongodb://localhost:27017/")
 db = client["restoDB"]
 users = db["users"]
 
+# Définition des créneaux fixes (2 heures) entre 11:30 et 01:30 (dernier créneau 23:30-01:30)
+SLOTS = [
+    ("11:30", "13:30"),
+    ("13:30", "15:30"),
+    ("15:30", "17:30"),
+    ("17:30", "19:30"),
+    ("19:30", "21:30"),
+    ("21:30", "23:30"),
+    ("23:30", "01:30")
+]
+
 # --------------------------------------------------------
 #   PAGE D'ACCUEIL
 # --------------------------------------------------------
@@ -30,11 +41,12 @@ def index():
             "_id": str(b.get("_id")),
             "numero": b.get("numero"),
             "places": b.get("places"),
+            # backend status left intact but not shown in UI per new requirement
             "status": b.get("status"),
             "type": b.get("type"),
             "prix_horaire": b.get("prix_horaire")
         })
-    return render_template("index.html", boxes=boxes, current_year=datetime.now().year)
+    return render_template("index.html", boxes=boxes, current_year=datetime.now().year, slots=SLOTS)
 
 
 @app.route('/reserve_prepare', methods=["POST"])
@@ -42,24 +54,29 @@ def reserve_prepare():
     # Collect reservation details from the user and store in session.
     box_id = request.form.get('box_id')
     date = request.form.get('date')
-    heure_debut = request.form.get('heure_debut')
-    heure_fin = request.form.get('heure_fin')
+    slot_index = request.form.get('slot_index')
     notes = request.form.get('notes')
 
-    if not box_id or not date or not heure_debut or not heure_fin:
+    if not box_id or not date or slot_index is None:
         return redirect(url_for('index'))
 
-    # Basic validation of ObjectId
+    # Basic validation of ObjectId and slot index
     try:
         ObjectId(box_id)
+        slot_index = int(slot_index)
+        if slot_index < 0 or slot_index >= len(SLOTS):
+            return redirect(url_for('index'))
     except Exception:
         return redirect(url_for('index'))
+
+    heure_debut, heure_fin = SLOTS[slot_index]
 
     session['pending_reservation'] = {
         'box_id': box_id,
         'date': date,
         'heure_debut': heure_debut,
         'heure_fin': heure_fin,
+        'slot_index': slot_index,
         'notes': notes or ''
     }
 
@@ -112,11 +129,12 @@ def reservation_create():
     except Exception:
         return redirect(url_for('index'))
 
-    # Check box availability again
-    box = db.box.find_one({'_id': box_oid})
-    if not box or box.get('status') != 'libre':
-        # Box not available
+    # Check slot availability again for the given date
+    existing = db.reservation.find_one({'box_id': box_oid, 'date': pending['date'], 'heure_debut': pending['heure_debut']})
+    if existing:
+        # Slot already taken
         session.pop('pending_reservation', None)
+        flash('Le créneau sélectionné a été réservé au préalable. Veuillez choisir un autre créneau.', 'error')
         return redirect(url_for('index'))
 
     reservation_doc = {
@@ -132,8 +150,7 @@ def reservation_create():
 
     db.reservation.insert_one(reservation_doc)
 
-    # Mark box as reserved to prevent double booking
-    db.box.update_one({'_id': box_oid}, {'$set': {'status': 'reservee', 'reserved_by': session['user']['username'], 'reserved_at': datetime.utcnow()}})
+    # Do NOT change the global box.status — we track reservations per slot only
 
     # Cleanup
     session.pop('pending_reservation', None)
@@ -171,6 +188,32 @@ def dashboard():
 
         return render_template("dashboard.html", user=user, reservations=reservations)
     return redirect(url_for('login'))
+
+
+@app.route('/api/availability')
+def api_availability():
+    # Returns list of reserved slot indexes for a given box and date
+    box_id = request.args.get('box_id')
+    date = request.args.get('date')
+    if not box_id or not date:
+        return jsonify({'error': 'missing parameters'}), 400
+
+    try:
+        box_oid = ObjectId(box_id)
+    except Exception:
+        return jsonify({'error': 'invalid box_id'}), 400
+
+    reserved_indexes = []
+    cursor = db.reservation.find({'box_id': box_oid, 'date': date})
+    for r in cursor:
+        hd = r.get('heure_debut')
+        # find matching slot index
+        for idx, (sstart, send) in enumerate(SLOTS):
+            if sstart == hd:
+                reserved_indexes.append(idx)
+                break
+
+    return jsonify({'reserved': reserved_indexes})
 
 # --------------------------------------------------------
 #   PAGE D'INSCRIPTION

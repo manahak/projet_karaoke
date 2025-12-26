@@ -28,52 +28,123 @@
                 {% for box in boxes %}
                     <div class="col-md-4 mb-3">
                         <div class="card h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">Box #{{ box.numero }} — {{ box.type|capitalize }}</h5>
-                                <p class="card-text">Places : {{ box.places }}<br>Prix horaire : {{ box.prix_horaire }} €</p>
-                                <p>
-                                    {% if box.status == 'libre' %}
-                                        <span class="badge bg-success">Libre</span>
-                                    {% elif box.status == 'reservee' %}
-                                        <span class="badge bg-warning text-dark">Réservée</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ box.status }}</span>
-                                    {% endif %}
-                                </p>
-                            </div>
-                                                        <div class="card-footer bg-transparent">
-                                                                {% if box.status == 'libre' %}
-                                                                        <form method="POST" action="{{ url_for('reserve_prepare') }}">
-                                                                                <input type="hidden" name="box_id" value="{{ box._id }}">
-                                                                                <div class="row g-2">
-                                                                                    <div class="col-12 mb-2">
-                                                                                        <label class="form-label small">Date</label>
-                                                                                        <input class="form-control form-control-sm" type="date" name="date" required>
-                                                                                    </div>
-                                                                                    <div class="col-6">
-                                                                                        <label class="form-label small">Heure début</label>
-                                                                                        <input class="form-control form-control-sm" type="time" name="heure_debut" required>
-                                                                                    </div>
-                                                                                    <div class="col-6">
-                                                                                        <label class="form-label small">Heure fin</label>
-                                                                                        <input class="form-control form-control-sm" type="time" name="heure_fin" required>
-                                                                                    </div>
-                                                                                    <div class="col-12 mt-2">
-                                                                                        <label class="form-label small">Notes (optionnel)</label>
-                                                                                        <input class="form-control form-control-sm" type="text" name="notes" placeholder="Remarques, préférences...">
-                                                                                    </div>
-                                                                                    <div class="col-12 text-end mt-2">
-                                                                                        <button class="btn btn-primary btn-sm" type="submit">Choisir &amp; Confirmer</button>
-                                                                                    </div>
-                                                                                </div>
-                                                                        </form>
-                                                                {% else %}
-                                                                        <button class="btn btn-outline-secondary" disabled>Indisponible</button>
-                                                                {% endif %}
-                                                        </div>
+                                        <div class="card-body">
+                                            <h5 class="card-title">Box #{{ box.numero }} — {{ box.type|capitalize }}</h5>
+                                            <p class="card-text">Places : {{ box.places }}<br>Prix horaire : {{ box.prix_horaire }} €</p>
+                                            <p class="text-muted small">Sélectionnez une date puis choisissez un créneau de 2 heures.</p>
+                                        </div>
+                                        <div class="card-footer bg-transparent">
+                                            <form method="POST" action="{{ url_for('reserve_prepare') }}" id="form-{{ box._id }}">
+                                                <input type="hidden" name="box_id" value="{{ box._id }}">
+                                                <div class="mb-2">
+                                                    <label class="form-label small">Date</label>
+                                                    <select name="date" class="form-select form-select-sm" id="date-{{ box._id }}" required></select>
+                                                </div>
+                                                <div id="slots-{{ box._id }}" class="mb-2">
+                                                    <!-- Slots rendered here by JS -->
+                                                </div>
+                                                <input type="hidden" name="slot_index" id="slot-{{ box._id }}">
+                                                <div class="mb-2">
+                                                    <label class="form-label small">Notes (optionnel)</label>
+                                                    <input class="form-control form-control-sm" type="text" name="notes" placeholder="Remarques, préférences...">
+                                                </div>
+                                                <div class="text-end">
+                                                    <button class="btn btn-primary btn-sm" type="submit">Choisir &amp; Confirmer</button>
+                                                </div>
+                                            </form>
+                                        </div>
                         </div>
                     </div>
                 {% endfor %}
             </div>
         </section>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // SLOTS provided by server
+        const SLOTS = {{ slots | tojson }};
+        // box ids array
+        const BOX_IDS = {{ boxes | map(attribute='_id') | list | tojson }};
+
+        function formatDateYYYYMMDD(d) {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function getNextDates(n) {
+            const arr = [];
+            const today = new Date();
+            for (let i = 0; i < n; i++) {
+                const d = new Date(today);
+                d.setDate(today.getDate() + i);
+                arr.push(d);
+            }
+            return arr;
+        }
+
+        // populate date selects and attach onchange
+        function initDateSelects() {
+            const dates = getNextDates(14);
+            BOX_IDS.forEach(boxId => {
+                const sel = document.getElementById('date-' + boxId);
+                if (!sel) return;
+                sel.innerHTML = '';
+                dates.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = formatDateYYYYMMDD(d);
+                    opt.textContent = d.toLocaleDateString();
+                    sel.appendChild(opt);
+                });
+                // load slots for initial selected date
+                sel.addEventListener('change', () => loadSlots(boxId, sel.value));
+                loadSlots(boxId, sel.value);
+            });
+        }
+
+        async function loadSlots(boxId, date) {
+            const container = document.getElementById('slots-' + boxId);
+            const hidden = document.getElementById('slot-' + boxId);
+            hidden.value = '';
+            container.innerHTML = '<div class="text-muted small">Chargement des créneaux…</div>';
+            try {
+                const resp = await fetch(`/api/availability?box_id=${boxId}&date=${date}`);
+                const data = await resp.json();
+                const reserved = new Set(data.reserved || []);
+                // render slots
+                container.innerHTML = '';
+                SLOTS.forEach((slot, idx) => {
+                    const start = slot[0];
+                    const end = slot[1];
+                    const id = `slot-${boxId}-${idx}`;
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'form-check';
+                    const input = document.createElement('input');
+                    input.className = 'form-check-input';
+                    input.type = 'radio';
+                    input.name = 'slot_radios_' + boxId;
+                    input.id = id;
+                    input.value = idx;
+                    if (reserved.has(idx)) {
+                        input.disabled = true;
+                    }
+                    input.addEventListener('change', () => { hidden.value = idx; });
+                    const label = document.createElement('label');
+                    label.className = 'form-check-label';
+                    label.htmlFor = id;
+                    label.innerHTML = `${start} — ${end} ` + (reserved.has(idx) ? '<span class="badge bg-danger ms-2">Réservé</span>' : '<span class="badge bg-success ms-2">Disponible</span>');
+                    wrapper.appendChild(input);
+                    wrapper.appendChild(label);
+                    container.appendChild(wrapper);
+                });
+            } catch (err) {
+                container.innerHTML = '<div class="text-danger small">Impossible de charger la disponibilité.</div>';
+                console.error(err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => initDateSelects());
+    </script>
 {% endblock %}

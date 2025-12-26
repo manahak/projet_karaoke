@@ -31,6 +31,8 @@ body { padding-top: 88px !important; }
 
 /* Cards and panels */
 .card, .modal-content, .dropdown-menu{
+  /* make card-level custom property authoritative to override upstream theme */
+  --bs-card-bg: var(--bs-card-bg) !important;
   background-color: var(--bs-card-bg) !important;
   color: var(--bs-body-color) !important;
   border-color: var(--bs-border-color) !important;
@@ -39,6 +41,8 @@ body { padding-top: 88px !important; }
 
 /* Strong overrides to neutralize any remaining white backgrounds from theme */
 .bg-white, .bg-light, .card, .card-body, .card .card-body, .card-header, .card-footer, .jumbotron, .panel, .well, .hero, .section, .container, .container-fluid {
+  /* force any elements that default to white to our dark card background */
+  --bs-card-bg: #0f1720 !important;
   background-color: var(--bs-card-bg) !important;
   color: var(--bs-body-color) !important;
   border-color: var(--bs-border-color) !important;
@@ -48,6 +52,12 @@ body { padding-top: 88px !important; }
 .table-responsive, .table-responsive > .table, .form-group, .form-row, .form-control, .input-group, .card .list-group-item {
   background-color: transparent !important;
   color: var(--bs-body-color) !important;
+}
+
+/* Strongly override any rule that sets white backgrounds inside cards/tables */
+.card, .card * , .table, .table * , .table-responsive, .table-responsive * {
+  background-color: transparent !important;
+  color: inherit !important;
 }
 
 /* Force common white/light backgrounds to dark variants */

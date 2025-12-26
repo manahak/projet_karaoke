@@ -43,7 +43,7 @@ body { padding-top: 88px !important; }
 .bg-white, .bg-light, .card, .card-body, .card .card-body, .card-header, .card-footer, .jumbotron, .panel, .well, .hero, .section, .container, .container-fluid {
   /* force any elements that default to white to our dark card background */
   --bs-card-bg: #0f1720 !important;
-  background-color: var(--bs-card-bg) !important;
+  /*background-color: var(--bs-card-bg) !important;*/
   color: var(--bs-body-color) !important;
   border-color: var(--bs-border-color) !important;
 }

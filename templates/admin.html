@@ -127,7 +127,7 @@
   document.addEventListener('DOMContentLoaded', () => {
   // Header label mapping for readability
   const headerLabels = {
-    '_id':'ID', 'numero':'Numéro', 'places':'Places', 'type':'Type', 'prix_horaire':'Prix /h', 'status':'Statut',
+    '_id':'ID', 'numero':'Numéro', 'places':'Places', 'nom':'Nom', 'prix_horaire':'Prix /h', 'status':'Statut',
     'date':'Date', 'heure_debut':'Heure début', 'heure_fin':'Heure fin', 'user_id':'Client ID', 'box_id':'Box ID',
     'client_name':'Client', 'box_numero':'Box', 'username':'Nom', 'email':'Email', 'password':'Mot de passe', 'created_at':'Créé', 'updated_at':'Modifié', 'notes':'Notes'
   };
@@ -180,7 +180,8 @@
         let keys;
         if (col === 'box' || currentCol === 'box'){
           // show only relevant box fields (status intentionally omitted)
-          keys = ['_id','numero','places','type','prix_horaire'];
+          // use 'nom' instead of old 'type' field — UI displays and allows renaming
+          keys = ['_id','numero','places','nom','prix_horaire'];
         } else if (col === 'reservation' || currentCol === 'reservation'){
           // show readable reservation columns and use enriched client/box fields
           keys = ['_id','date','heure_debut','heure_fin','client_name','box_numero','status','notes'];
@@ -197,6 +198,33 @@
           keys.forEach(k => {
             const td = document.createElement('td');
             const val = (d[k] === null || d[k] === undefined) ? '' : d[k];
+            // special-case: make the 'nom' column for boxes editable inline
+            if (currentCol === 'box' && k === 'nom'){
+              const input = document.createElement('input');
+              input.type = 'text';
+              input.className = 'form-control form-control-sm';
+              input.value = val || '';
+              // save on blur or Enter
+              input.addEventListener('keydown', async (ev)=>{
+                if (ev.key === 'Enter'){
+                  ev.preventDefault();
+                  ev.target.blur();
+                }
+              });
+              input.addEventListener('blur', async (ev)=>{
+                const newVal = ev.target.value.trim();
+                if (newVal === (val || '').toString()) return; // no change
+                try{
+                  const bodyData = {col: 'box', id: d._id, doc: {nom: newVal}};
+                  const resp = await fetch('/admin/api/update', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrfToken}, body: JSON.stringify(bodyData)});
+                  const data = await resp.json();
+                  if (data.error){ showAlert('Erreur: ' + data.error,'danger'); } else { showAlert('Nom mis à jour','success'); loadCollection(currentCol); }
+                }catch(err){ console.error(err); showAlert('Erreur lors de la mise à jour','danger'); }
+              });
+              td.appendChild(input);
+              tr.appendChild(td);
+              return; // continue to next key
+            }
             // shorten id-like fields and make them copyable; include password as sensitive but copyable (hash)
             if ((k === '_id' || k === 'user_id' || k === 'box_id' || k === 'password') && val){
               const full = (typeof val === 'object') ? JSON.stringify(val) : String(val);

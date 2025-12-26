@@ -8,7 +8,7 @@
       <div class="card">
         <div class="card-body">
           <h4 class="card-title">Récapitulatif de votre réservation</h4>
-          <p class="mb-1"><strong>Box :</strong> #{{ box.numero }} — {{ box.type|capitalize }}</p>
+          <p class="mb-1"><strong>Box :</strong> #{{ box.numero }} — {{ box.nom|default(box.type)|capitalize }}</p>
           <p class="mb-1"><strong>Date :</strong> {{ pending.date }}</p>
           <p class="mb-1"><strong>Heure :</strong> {{ pending.heure_debut }} — {{ pending.heure_fin }}</p>
           <p class="mb-1"><strong>Prix / heure :</strong> {{ box.prix_horaire }} €</p>

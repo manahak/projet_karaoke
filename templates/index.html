@@ -33,7 +33,7 @@
                     <div class="col-md-4 mb-3">
                         <div class="card h-100">
                                         <div class="card-body">
-                                            <h5 class="card-title">Box #{{ box.numero }} — {{ box.type|capitalize }}</h5>
+                                            <h5 class="card-title">Box #{{ box.numero }} — {{ box.nom|default(box.type)|capitalize }}</h5>
                                             <p class="card-text">Places : {{ box.places }}<br>Prix horaire : {{ box.prix_horaire }} €</p>
                                             <p class="text-muted small">Sélectionnez une date puis choisissez un créneau de 2 heures.</p>
                                         </div>

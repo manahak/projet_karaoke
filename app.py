@@ -50,7 +50,8 @@ def index():
             "places": b.get("places"),
             # backend status left intact but not shown in UI per new requirement
             "status": b.get("status"),
-            "type": b.get("type"),
+            # 'nom' is the display name for a box; fall back to legacy 'type' or to 'Mixte'
+            "nom": b.get("nom") or b.get("type") or 'Mixte',
             "prix_horaire": b.get("prix_horaire")
         })
     return render_template("index.html", boxes=boxes, current_year=datetime.now().year, slots=SLOTS)
@@ -114,7 +115,7 @@ def confirm_reservation():
         '_id': str(box.get('_id')),
         'numero': box.get('numero'),
         'places': box.get('places'),
-        'type': box.get('type'),
+        'nom': box.get('nom') or box.get('type') or 'Mixte',
         'prix_horaire': box.get('prix_horaire')
     })
 
@@ -524,7 +525,12 @@ def admin_api_list():
         if col == 'users':
             filt = {'$or': [{'username': {'$regex': q, '$options': 'i'}}, {'email': {'$regex': q, '$options': 'i'}}]}
         elif col in ('box', 'boxes'):
-            filt = {'$or': [{'numero': {'$regex': q, '$options': 'i'}}, {'type': {'$regex': q, '$options': 'i'}}]}
+            # search by box number or name ('nom') — older data might still have 'type'
+            filt = {'$or': [
+                {'numero': {'$regex': q, '$options': 'i'}},
+                {'nom': {'$regex': q, '$options': 'i'}},
+                {'type': {'$regex': q, '$options': 'i'}}
+            ]}
         elif col in ('reservation', 'reservations'):
             filt = {'$or': [{'date': {'$regex': q, '$options': 'i'}}, {'notes': {'$regex': q, '$options': 'i'}}]}
         elif col == 'admin_logs':

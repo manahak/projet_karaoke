@@ -208,33 +208,7 @@
           keys.forEach(k => {
             const td = document.createElement('td');
             const val = (d[k] === null || d[k] === undefined) ? '' : d[k];
-            // special-case: make the 'nom' column for boxes editable inline
-            if (currentCol === 'box' && k === 'nom'){
-              const input = document.createElement('input');
-              input.type = 'text';
-              input.className = 'form-control form-control-sm';
-              input.value = val || '';
-              // save on blur or Enter
-              input.addEventListener('keydown', async (ev)=>{
-                if (ev.key === 'Enter'){
-                  ev.preventDefault();
-                  ev.target.blur();
-                }
-              });
-              input.addEventListener('blur', async (ev)=>{
-                const newVal = ev.target.value.trim();
-                if (newVal === (val || '').toString()) return; // no change
-                try{
-                  const bodyData = {col: 'box', id: d._id, doc: {nom: newVal}};
-                  const resp = await fetch('/admin/api/update', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrfToken}, body: JSON.stringify(bodyData)});
-                  const data = await resp.json();
-                  if (data.error){ showAlert('Erreur: ' + data.error,'danger'); } else { showAlert('Nom mis à jour','success'); loadCollection(currentCol); }
-                }catch(err){ console.error(err); showAlert('Erreur lors de la mise à jour','danger'); }
-              });
-              td.appendChild(input);
-              tr.appendChild(td);
-              return; // continue to next key
-            }
+            // Render values normally; the inline row editor (toggleRowEdit) will create inputs when entering edit mode
             // shorten id-like fields and make them copyable; include password as sensitive but copyable (hash)
             if ((k === '_id' || k === 'user_id' || k === 'box_id' || k === 'password') && val){
               const full = (typeof val === 'object') ? JSON.stringify(val) : String(val);

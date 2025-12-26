@@ -1,8 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, Response
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
 from pymongo import MongoClient
-from bson import ObjectId
+from bson import ObjectId, json_util
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -513,12 +513,32 @@ def admin_api_list():
         elif col == 'admin_logs':
             filt = {'$or': [{'action': {'$regex': q, '$options': 'i'}}, {'collection': {'$regex': q, '$options': 'i'}}]}
 
-    # prepare sort
+    # prepare sort mapping (support logical values 'id','alpha','modified')
     sort_spec = None
     if sort:
-        direction = -1 if sort.startswith('-') else 1
-        key = sort[1:] if sort.startswith('-') else sort
-        sort_spec = (key, direction)
+        # map logical sort keys to actual document keys per collection
+        key = sort
+        direction = 1
+        if sort.startswith('-'):
+            direction = -1
+            key = sort[1:]
+        # logical keys
+        if key in ('id', '_id'):
+            real_key = '_id'
+        elif key == 'alpha':
+            if col == 'users':
+                real_key = 'username'
+            elif col in ('box', 'boxes'):
+                real_key = 'numero'
+            else:
+                real_key = 'date'
+        elif key == 'modified':
+            # try updated_at then created_at
+            real_key = 'updated_at'
+            # note: we'll attempt to sort by updated_at; if not present we'll fallback to created_at
+        else:
+            real_key = key
+        sort_spec = (real_key, direction)
 
     docs = []
     cursor = coll.find(filt)
@@ -526,19 +546,31 @@ def admin_api_list():
         try:
             cursor = cursor.sort([sort_spec])
         except Exception:
-            pass
+            # fallback: if we tried 'updated_at', try 'created_at'
+            try:
+                if sort_spec[0] == 'updated_at':
+                    cursor = cursor.sort([('created_at', sort_spec[1])])
+            except Exception:
+                pass
     for d in cursor:
-        doc = {}
-        for k, v in d.items():
-            if k == '_id':
-                doc[k] = str(v)
-            else:
-                try:
-                    doc[k] = v
-                except Exception:
+        docs.append(d)
+    # Use bson.json_util to serialize possible ObjectId/datetime inside docs
+    try:
+        return Response(json_util.dumps({'docs': docs}), mimetype='application/json')
+    except Exception:
+        # fallback: stringifying individual fields
+        out = []
+        for d in docs:
+            doc = {}
+            for k, v in d.items():
+                if k == '_id':
                     doc[k] = str(v)
-        docs.append(doc)
-    return jsonify({'docs': docs})
+                elif isinstance(v, (str, int, float, bool)) or v is None:
+                    doc[k] = v
+                else:
+                    doc[k] = str(v)
+            out.append(doc)
+        return jsonify({'docs': out})
 
 
 @app.route('/admin/api/create', methods=['POST'])

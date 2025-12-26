@@ -24,8 +24,12 @@
             <div class="mb-2">
               <select id="adminSort" class="form-select form-select-sm">
                 <option value="">Trier</option>
-                <option value="_id">_id ↑</option>
-                <option value="-created_at">Date ↓</option>
+                <option value="id">ID ↑</option>
+                <option value="-id">ID ↓</option>
+                <option value="alpha">A → Z</option>
+                <option value="-alpha">Z → A</option>
+                <option value="modified">Modifié ↑</option>
+                <option value="-modified">Modifié ↓</option>
               </select>
             </div>
             <div class="list-group" id="adminCollections">
@@ -127,11 +131,16 @@
             tr.appendChild(td);
           });
           const actions = document.createElement('td');
-          const btnEdit = document.createElement('button'); btnEdit.className='btn btn-sm btn-outline-primary me-2'; btnEdit.textContent='Modifier';
-          btnEdit.addEventListener('click', ()=> openEdit(d));
-          const btnDel = document.createElement('button'); btnDel.className='btn btn-sm btn-outline-danger'; btnDel.textContent='Supprimer';
-          btnDel.addEventListener('click', ()=> delDoc(d._id));
-          actions.appendChild(btnEdit); actions.appendChild(btnDel);
+          // Do not allow edit/delete for logs (read-only)
+          if (currentCol !== 'admin_logs'){
+            const btnEdit = document.createElement('button'); btnEdit.className='btn btn-sm btn-outline-primary me-2'; btnEdit.textContent='Modifier';
+            btnEdit.addEventListener('click', ()=> openEdit(d));
+            const btnDel = document.createElement('button'); btnDel.className='btn btn-sm btn-outline-danger'; btnDel.textContent='Supprimer';
+            btnDel.addEventListener('click', ()=> delDoc(d._id));
+            actions.appendChild(btnEdit); actions.appendChild(btnDel);
+          } else {
+            actions.textContent = 'Lecture seule';
+          }
           tr.appendChild(actions);
           body.appendChild(tr);
         });

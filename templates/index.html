@@ -41,13 +41,13 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title">Box #{{ box.numero }} — {{ box.nom|default(box.type)|capitalize }}</h5>
-                    {% if box.image %}
-                    <div class="mb-2"><img src="{{ box.image }}" alt="Box {{ box.numero }}" class="img-fluid"
-                            style="max-height:120px; object-fit:cover;"></div>
-                    {% else %}
-                    <div class="mb-2"><img src="{{ url_for('static', filename='img/box.png') }}"
-                            alt="Placeholder" class="img-fluid" style="max-height:120px; object-fit:cover;"></div>
-                    {% endif %}
+            {% if box.image %}
+            <div class="mb-2"><img src="{{ box.image }}" alt="Box {{ box.numero }}" class="img-fluid w-100"
+                style="height:160px; object-fit:cover; width:100%;"></div>
+            {% else %}
+            <div class="mb-2"><img src="{{ url_for('static', filename='img/box.png') }}"
+                alt="Placeholder" class="img-fluid w-100" style="height:160px; object-fit:cover; width:100%;"></div>
+            {% endif %}
                     <p class="card-text">Places : {{ box.places }}<br>Prix : {{ box.prix_horaire }} €</p>
                     <p class="text-muted small">Sélectionnez une date puis choisissez un créneau de 2 heures.</p>
                 </div>
